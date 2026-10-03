@@ -13,3 +13,7 @@ games/<naam>/index.html        één map per game
 
 1. Zet de game in `games/<naam>/index.html`. Een link `../../` brengt je terug naar het overzicht.
 2. Voeg een regel toe aan de lijst `GAMES` in `index.html` (titel, link, beschrijving, thumbnail, optioneel de `localStorage`-sleutel van het record).
+
+## Versie
+
+Het versienummer staat in `version.js` en wordt onderaan de landingspagina en op het startscherm van elke game getoond. Verhoog het bij elke wijziging.

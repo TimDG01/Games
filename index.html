@@ -42,6 +42,7 @@ h1 span{color:var(--accent)}
   padding:6px 12px;box-shadow:0 3px 0 var(--accent-deep)}
 .best{color:var(--accent)}
 
+footer{max-width:960px;width:100%;margin:40px auto 0;color:var(--muted);font-size:13px;letter-spacing:.08em}
 .soon{border:2px dashed #2f3860;border-radius:6px;display:grid;place-items:center;min-height:200px;padding:24px;text-align:center;
   color:var(--muted);font-size:15px}
 
@@ -56,8 +57,11 @@ h1 span{color:var(--accent)}
 
   <ul class="grid" id="games"></ul>
 </main>
+<footer>Versie <span id="version"></span></footer>
 
+<script src="version.js"></script>
 <script>
+document.getElementById('version').textContent = SITE_VERSION;
 /*
   Een nieuwe game toevoegen:
   1. Zet de game in games/<naam>/index.html
