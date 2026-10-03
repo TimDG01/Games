@@ -59,7 +59,7 @@ footer{max-width:960px;width:100%;margin:40px auto 0;color:var(--muted);font-siz
 </main>
 <footer>Versie <span id="version"></span></footer>
 
-<script src="version.js?v=2.8"></script>
+<script src="version.js?v=2.9"></script>
 <script>
 document.getElementById('version').textContent = SITE_VERSION;
 /*
@@ -207,6 +207,29 @@ const GAMES = [
       <rect x="72" y="44" width="2" height="7" fill="#f4f0e6"/>
       <path d="M30 66h24v8H30zM106 66h24v8h-24z" fill="#7bd88f"/>
       <g fill="#7bd88f" transform="translate(62 74)"><rect x="9" y="0" width="2" height="2"/><rect x="7" y="2" width="6" height="2"/><rect x="0" y="4" width="20" height="6"/></g>`
+  },
+  {
+    title: 'Sudoku',
+    href: 'games/sudoku/',
+    description: 'Vul het raster met 1 tot 9, zonder dubbele cijfers in een rij, kolom of blok. Elke puzzel is nieuw, en je spel wordt bewaard.',
+    tag: 'Puzzel',
+    bestKey: 'sudoku-best-makkelijk',
+    bestLabel: n => Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0') + ' (makkelijk)',
+    thumb: `
+      <rect width="160" height="90" fill="#10162a"/>
+      <g transform="translate(47 12)">
+        <rect width="66" height="66" rx="3" fill="#1d2440" stroke="#5b6aa0" stroke-width="2"/>
+        <rect x="22" y="22" width="22" height="22" fill="#28315a"/>
+        <path d="M22 0v66M44 0v66M0 22h66M0 44h66" stroke="#5b6aa0" stroke-width="1.5"/>
+        <g font-family="Arial, sans-serif" font-weight="700" font-size="11" text-anchor="middle" fill="#f4f0e6">
+          <text x="11" y="15">5</text><text x="55" y="15">3</text><text x="33" y="37">7</text>
+          <text x="11" y="59">9</text><text x="55" y="59">1</text>
+        </g>
+        <g font-family="Arial, sans-serif" font-weight="700" font-size="11" text-anchor="middle" fill="#8fc2ff">
+          <text x="33" y="15">8</text><text x="55" y="37">4</text>
+        </g>
+        <g font-family="Arial, sans-serif" font-size="5" fill="#9097b5"><text x="4" y="29">1</text><text x="13" y="29">2</text><text x="4" y="40">6</text></g>
+      </g>`
   },
 ];
 
