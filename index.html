@@ -59,7 +59,7 @@ footer{max-width:960px;width:100%;margin:40px auto 0;color:var(--muted);font-siz
 </main>
 <footer>Versie <span id="version"></span></footer>
 
-<script src="version.js?v=2.9"></script>
+<script src="version.js?v=3.0"></script>
 <script>
 document.getElementById('version').textContent = SITE_VERSION;
 /*
@@ -230,6 +230,25 @@ const GAMES = [
         </g>
         <g font-family="Arial, sans-serif" font-size="5" fill="#9097b5"><text x="4" y="29">1</text><text x="13" y="29">2</text><text x="4" y="40">6</text></g>
       </g>`
+  },
+  {
+    title: 'Blokken',
+    href: 'games/blokken/',
+    description: 'Sleep blokken op het veld en maak volle rijen en kolommen. Lijnen na elkaar geven combo-punten. Hoe lang hou jij het vol?',
+    tag: 'Puzzel',
+    bestKey: 'blokken-best',
+    bestLabel: n => n + ' punten',
+    thumb: `
+      <rect width="160" height="90" fill="#10162a"/>
+      <g transform="translate(44 8)">
+        <rect width="74" height="74" rx="4" fill="#0b0f1d"/>
+        <g fill="#1a2140">${[...Array(36)].map((_, i) => `<rect x="${3 + (i % 6) * 11.5}" y="${3 + Math.floor(i / 6) * 11.5}" width="10" height="10" rx="2"/>`).join('')}</g>
+        <g fill="#6cb6ff"><rect x="3" y="60.5" width="10" height="10" rx="2"/><rect x="14.5" y="60.5" width="10" height="10" rx="2"/><rect x="3" y="49" width="10" height="10" rx="2"/></g>
+        <g fill="#ffb347"><rect x="26" y="60.5" width="10" height="10" rx="2"/><rect x="37.5" y="60.5" width="10" height="10" rx="2"/><rect x="49" y="60.5" width="10" height="10" rx="2"/><rect x="60.5" y="60.5" width="10" height="10" rx="2"/></g>
+        <g fill="#b48cff"><rect x="49" y="49" width="10" height="10" rx="2"/><rect x="60.5" y="49" width="10" height="10" rx="2"/><rect x="60.5" y="37.5" width="10" height="10" rx="2"/></g>
+        <g fill="#7bd88f" opacity=".45"><rect x="14.5" y="49" width="10" height="10" rx="2"/><rect x="26" y="49" width="10" height="10" rx="2"/><rect x="37.5" y="49" width="10" height="10" rx="2"/></g>
+      </g>
+      <g fill="#7bd88f"><rect x="126" y="30" width="10" height="10" rx="2"/><rect x="137.5" y="30" width="10" height="10" rx="2"/><rect x="149" y="30" width="10" height="10" rx="2"/></g>`
   },
 ];
 
