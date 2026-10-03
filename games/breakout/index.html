@@ -101,7 +101,7 @@ addEventListener('resize',resize);resize();
 let best=0; try{best=+localStorage.getItem('breakout-best')||0}catch(e){}
 $('bestline').textContent='Record '+best;
 
-let fastT=0,laserT=0,shotT=0,shots=[],state='start',score,lives,level,bricks,balls,drops,parts,paddle,banner=0,keyDir=0;
+let flash=null,fastT=0,laserT=0,shotT=0,shots=[],state='start',score,lives,level,bricks,balls,drops,parts,paddle,banner=0,keyDir=0;
 
 /* geluid: kleine piep, start pas na de eerste tik */
 let ac=null;
@@ -173,14 +173,15 @@ function hitBrick(b){
   if(b.hp>0){beep(300+b.hp*80,0.05);addScore(5);return;}
   b.alive=false;addScore(10*b.max);beep(520+rnd()*200,0.06);
   for(let i=0;i<8;i++)parts.push({x:b.x+b.w/2,y:b.y+b.h/2,vx:(rnd()-0.5)*220,vy:(rnd()-0.7)*200,t:0.6,hue:b.hue});
-  if(rnd()<0.12){
-    const q=rnd(), type=q<0.28?'breed':q<0.52?'multi':q<0.68?'snel':q<0.85?'laser':'leven';
+  if(rnd()<0.15){
+    const q=rnd(), type=q<0.22?'breed':q<0.42?'multi':q<0.55?'snel':q<0.85?'laser':'leven';
     drops.push({x:b.x+b.w/2,y:b.y+b.h/2,type});
   }
 }
 
 function catchDrop(d){
   beep(880,0.12,'sine',0.1);addScore(25);
+  flash={text:{breed:'Breed!',multi:'3 ballen!',snel:'Snel!',laser:'Laser!',leven:'+1 leven'}[d.type],col:DROP[d.type][0],x:paddle.x,t:1.2};
   if(d.type==='breed')paddle.wideT=12;
   else if(d.type==='snel')fastT=8;
   else if(d.type==='laser'){laserT=6;shotT=0;}
@@ -248,6 +249,7 @@ function update(dt){
   if(keyDir)paddle.x+=keyDir*520*dt;
   paddle.x=clamp(paddle.x,paddle.w/2,FW-paddle.w/2);
   if(banner>0)banner-=dt;
+  if(flash&&(flash.t-=dt)<=0)flash=null;
 
   for(const b of balls){
     if(b.stuck){b.x=paddle.x;b.y=paddle.y-b.r;continue;}
@@ -360,8 +362,12 @@ function draw(t){
   ctx.globalAlpha=1;
   ctx.fillStyle=fastT>0?'#ffb347':'#f4f0e6';
   for(const b of balls){ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();}
-  if(fastT>0){ // balkje dat aftelt
-    ctx.fillStyle='#b48cff';ctx.fillRect(FW/2-40,FH-12,80*Math.min(1,fastT/8),4);
+  // balkjes die aftellen
+  if(fastT>0){ctx.fillStyle='#b48cff';ctx.fillRect(FW/2-40,FH-12,80*Math.min(1,fastT/8),4);}
+  if(laserT>0){ctx.fillStyle='#ffe066';ctx.fillRect(FW/2-40,FH-6,80*Math.min(1,laserT/6),4);}
+  if(flash){
+    ctx.globalAlpha=Math.min(1,flash.t*2);ctx.fillStyle=flash.col;ctx.font='400 18px Bungee, Impact, sans-serif';
+    ctx.fillText(flash.text,clamp(flash.x,60,FW-60),paddle.y-24-(1.2-flash.t)*30);ctx.globalAlpha=1;
   }
 
   if(banner>0&&state==='play'){
