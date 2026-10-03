@@ -16,4 +16,13 @@ games/<naam>/index.html        één map per game
 
 ## Versie
 
-Het versienummer staat in `version.js` en wordt onderaan de landingspagina en op het startscherm van elke game getoond. Verhoog het bij elke wijziging.
+Het versienummer staat in `version.js` en wordt onderaan de landingspagina en op het startscherm van elke game getoond.
+Verhoog het bij elke wijziging met:
+
+```
+tools/bump-version.sh 2.3
+```
+
+Dat zet de versie ook in de verwijzing naar `version.js` in elke pagina. Elke pagina kijkt bij het openen of er online
+een nieuwere versie staat en laadt die dan meteen, zodat telefoons niet op een oude kopie blijven hangen.
+Een nieuwe game laadt `version.js` dus met `<script src="../../version.js?v=…"></script>`.
