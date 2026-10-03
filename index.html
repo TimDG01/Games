@@ -59,7 +59,7 @@ footer{max-width:960px;width:100%;margin:40px auto 0;color:var(--muted);font-siz
 </main>
 <footer>Versie <span id="version"></span></footer>
 
-<script src="version.js?v=4.0"></script>
+<script src="version.js?v=4.1"></script>
 <script>
 document.getElementById('version').textContent = SITE_VERSION;
 /*
@@ -267,6 +267,25 @@ const GAMES = [
       <path d="M95 58 L103 46" stroke="#ff7a7a" stroke-width="2" stroke-dasharray="2 4" opacity=".7"/>
       <path d="M66 86a14 14 0 0 1 28 0z" fill="#2a3358"/>
       <circle cx="80" cy="80" r="6.5" fill="#ff7a7a"/><circle cx="78" cy="78" r="2" fill="#fff" opacity=".5"/>`
+  },
+  {
+    title: '2048',
+    href: 'games/2048/',
+    description: 'Veeg de tegels samen: twee gelijke worden één, dubbel zo groot. Haal jij de tegel 2048, of nog verder?',
+    tag: 'Puzzel',
+    bestKey: '2048-best',
+    bestLabel: n => n + ' punten',
+    thumb: `
+      <rect width="160" height="90" fill="#10162a"/>
+      <g transform="translate(46 11)">
+        <rect width="68" height="68" rx="6" fill="#0b0f1d"/>
+        ${[[0,0,'#2a3358',''],[1,0,'#1a2140',''],[2,0,'#36406a','4'],[3,0,'#1a2140',''],
+           [0,1,'#1a2140',''],[1,1,'#ffb347','8'],[2,1,'#1a2140',''],[3,1,'#2a3358','2'],
+           [0,2,'#ff7a7a','32'],[1,2,'#ff9a52','16'],[2,2,'#1a2140',''],[3,2,'#1a2140',''],
+           [0,3,'#6cb6ff','2048'],[1,3,'#ffe066','128'],[2,3,'#7bd88f','512'],[3,3,'#36406a','4']]
+          .map(([c, r, f, t]) => `<rect x="${3 + c * 16.25}" y="${3 + r * 16.25}" width="14" height="14" rx="2" fill="${f}"/>` +
+            (t ? `<text x="${10 + c * 16.25}" y="${12.5 + r * 16.25}" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="${t.length > 3 ? 4.6 : t.length > 2 ? 5.6 : 7}" fill="${['#2a3358', '#36406a'].includes(f) ? '#f4f0e6' : '#0b0f1d'}">${t}</text>` : '')).join('')}
+      </g>`
   },
 ];
 

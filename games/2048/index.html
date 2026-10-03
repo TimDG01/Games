@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>2048</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;600&display=swap">
+<style>
+/* Layout: tellers bovenaan, bord van 4×4 in het midden, knoppen eronder, panelen erover */
+:root{
+  --bg:#141a2e; --bg-deep:#0b0f1d; --fg:#f4f0e6; --muted:#9097b5; --accent:#ffb347; --panel:#1d2440;
+  --display:'Bungee', Impact, 'Arial Black', sans-serif;
+  --body:'Outfit', system-ui, -apple-system, sans-serif;
+  --cell:80px; --gap:10px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;touch-action:none;
+  padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 14px)}
+.top{width:100%;max-width:520px;height:44px;display:grid;grid-template-columns:40px 1fr 1fr 40px;align-items:center;gap:6px}
+.stat{text-align:center;line-height:1}
+.stat b{display:block;font-family:var(--display);font-weight:400;font-size:24px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+.home{width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
+.home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+/* de terugknop blijft boven de pop-ups, zodat je altijd naar het overzicht kunt */
+.home{position:relative;z-index:5}
+.stage{flex:1;width:100%;display:grid;place-items:center;min-height:0}
+#board{position:relative;width:calc(var(--cell) * 4 + var(--gap) * 5);height:calc(var(--cell) * 4 + var(--gap) * 5);
+  background:#0b0f1d;border-radius:10px;padding:var(--gap)}
+.slot{position:absolute;width:var(--cell);height:var(--cell);border-radius:6px;background:#1a2140}
+.tile{position:absolute;left:0;top:0;width:var(--cell);height:var(--cell);border-radius:6px;display:grid;place-items:center;
+  font-family:var(--display);font-weight:400;line-height:1;transition:transform .11s ease-in-out;will-change:transform}
+.tile span{display:grid;place-items:center;width:100%;height:100%;border-radius:6px}
+.tile.new span{animation:appear .16s ease-out}
+.tile.merged span{animation:pop .18s ease-out}
+@keyframes appear{from{transform:scale(0)}to{transform:scale(1)}}
+@keyframes pop{50%{transform:scale(1.15)}}
+.actions{margin-top:14px;display:flex;gap:8px;width:100%;max-width:360px}
+.actions button{flex:1;font-family:var(--body);font-weight:600;font-size:15px;color:var(--fg);background:transparent;border:2px solid #2f3860;border-radius:6px;padding:10px 6px;cursor:pointer}
+.actions button:disabled{opacity:.35;cursor:default}
+.hint{margin-top:10px;font-size:13px;color:var(--muted);letter-spacing:.06em}
+.overlay{position:fixed;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62)}
+.overlay[hidden]{display:none}
+.panel{background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:28px 24px;max-width:320px;width:100%;text-align:center;
+  display:flex;flex-direction:column;gap:14px;box-shadow:8px 8px 0 var(--bg-deep)}
+.panel h1{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.05;margin:0;text-wrap:balance}
+.panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.45}
+.ver{font-size:12px;color:var(--muted);letter-spacing:.08em}
+.big{font-family:var(--display);font-size:56px;line-height:1;color:var(--accent)}
+.panel > button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
+  padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
+.panel > button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
+.panel > button.alt{background:transparent;color:var(--fg);border:2px solid var(--accent);box-shadow:none;font-size:16px;padding:10px}
+.panel > button[hidden]{display:none}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+</style>
+</head><body>
+
+<div id="wrap">
+  <div class="top">
+    <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
+    <div class="stat"><b id="score">0</b><span>Score</span></div>
+    <div class="stat"><b id="best">0</b><span>Record</span></div>
+    <button class="sndbtn" aria-label="Geluid aan of uit"></button>
+  </div>
+  <div class="stage"><div id="board" aria-label="Speelveld"></div></div>
+  <div class="actions">
+    <button id="undo">&#8630; Terug</button>
+    <button id="restart">&#8635; Nieuw spel</button>
+  </div>
+  <div class="hint">Veeg of gebruik de pijltjes</div>
+
+  <div class="overlay" id="start">
+    <div class="panel">
+      <h1>2048</h1>
+      <p>Veeg om alle tegels te laten schuiven. Twee gelijke tegels smelten samen tot één. Haal jij de tegel 2048?</p>
+      <button id="go">Nieuw spel</button>
+      <button class="alt" id="resume" hidden>Verder spelen</button>
+      <div class="ver">Versie <span id="ver"></span></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="win" hidden>
+    <div class="panel">
+      <h1>2048 gehaald!</h1>
+      <div class="big" id="winscore">0</div>
+      <p>punten. Speel verder voor 4096 en hoger, of begin opnieuw.</p>
+      <button id="keep">Verder spelen</button>
+      <button class="alt" id="winnew">Nieuw spel</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="over" hidden>
+    <div class="panel">
+      <h1>Geen zetten meer</h1>
+      <div class="big" id="final">0</div>
+      <p id="overmsg">punten</p>
+      <button id="again">Nieuw spel</button>
+      <button class="alt" id="overundo">Laatste zet terug</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../version.js?v=4.1"></script>
+<script>
+const $=id=>document.getElementById(id);
+try{$('ver').textContent=SITE_VERSION}catch(e){}
+
+const N=4;
+// kleur per tegel: [achtergrond, tekst]
+const STYLE={2:['#2a3358','#f4f0e6'],4:['#36406a','#f4f0e6'],8:['#ffb347','#0b0f1d'],16:['#ff9a52','#0b0f1d'],32:['#ff7a7a','#0b0f1d'],
+  64:['#ff5d6c','#0b0f1d'],128:['#ffe066','#0b0f1d'],256:['#ffd23f','#0b0f1d'],512:['#7bd88f','#0b0f1d'],1024:['#4fd1c5','#0b0f1d'],
+  2048:['#6cb6ff','#0b0f1d']};
+const styleOf=v=>STYLE[v]||['#b48cff','#0b0f1d'];
+
+let tiles=[], score=0, best=0, won=false, keepGoing=false, prev=null, state='start', nextId=1, busy=false;
+try{best=+localStorage.getItem('2048-best')||0}catch(e){}
+$('best').textContent=best;
+
+/* ---------- geluid ---------- */
+let ac=null;
+function beep(f,d=0.07,type='triangle',v=0.08){
+  if(window.SITE_SOUND&&!SITE_SOUND.on)return;   // geluid uitgezet
+  try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+d);
+    o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d);}catch(e){}
+}
+
+/* ---------- bord ---------- */
+const board=$('board');
+let cell=80,gap=10;
+function fit(){
+  const w=$('wrap'), avH=innerHeight-w.querySelector('.top').offsetHeight-w.querySelector('.actions').offsetHeight-w.querySelector('.hint').offsetHeight-80;
+  const size=Math.min(Math.min(innerWidth,520)-24,avH,480);
+  gap=Math.round(size*0.025);cell=Math.floor((size-gap*5)/N);
+  document.documentElement.style.setProperty('--cell',cell+'px');
+  document.documentElement.style.setProperty('--gap',gap+'px');
+  board.querySelectorAll('.slot').forEach(s=>{const r=+s.dataset.r,c=+s.dataset.c;s.style.left=pos(c)+'px';s.style.top=pos(r)+'px';});
+  for(const t of tiles)place(t);
+}
+const pos=k=>gap+k*(cell+gap);
+for(let r=0;r<N;r++)for(let c=0;c<N;c++){const s=document.createElement('div');s.className='slot';s.dataset.r=r;s.dataset.c=c;board.appendChild(s);}
+addEventListener('resize',fit);
+
+function makeEl(t,cls){
+  const el=document.createElement('div');el.className='tile '+(cls||'');
+  el.innerHTML='<span></span>';board.appendChild(el);t.el=el;paint(t);place(t);
+}
+function paint(t){
+  const [bg,fg]=styleOf(t.v), span=t.el.firstChild, digits=String(t.v).length;
+  span.style.background=bg;span.style.color=fg;span.textContent=t.v;
+  span.style.fontSize=Math.round(cell*(digits<3?0.42:digits<4?0.34:0.27))+'px';
+}
+function place(t){t.el.style.transform=`translate(${pos(t.c)}px,${pos(t.r)}px)`;}
+
+function addRandom(){
+  const free=[];for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(!tiles.some(t=>t.r===r&&t.c===c))free.push([r,c]);
+  if(!free.length)return;
+  const [r,c]=free[Math.floor(Math.random()*free.length)];
+  const t={id:nextId++,r,c,v:Math.random()<0.9?2:4};tiles.push(t);makeEl(t,'new');
+}
+
+/* ---------- opslaan ---------- */
+const snapshot=()=>({tiles:tiles.map(t=>[t.r,t.c,t.v]),score,won,keepGoing});
+function save(){try{if(state==='play')localStorage.setItem('2048-save',JSON.stringify({...snapshot(),prev}));}catch(e){}}
+function loadSave(){try{const s=JSON.parse(localStorage.getItem('2048-save'));return s&&s.tiles?s:null}catch(e){return null}}
+function clearSave(){try{localStorage.removeItem('2048-save')}catch(e){}}
+function restore(s){
+  tiles.forEach(t=>t.el.remove());tiles=[];
+  for(const [r,c,v] of s.tiles){const t={id:nextId++,r,c,v};tiles.push(t);makeEl(t);}
+  score=s.score;won=s.won;keepGoing=s.keepGoing;$('score').textContent=score;
+}
+
+/* ---------- schuiven ---------- */
+function move(dir){
+  if(state!=='play'||busy)return;
+  const vec={left:[0,-1],right:[0,1],up:[-1,0],down:[1,0]}[dir];
+  const before=snapshot();
+  const grid=[...Array(N)].map(()=>Array(N).fill(null));
+  for(const t of tiles)grid[t.r][t.c]=t;
+  // rijen of kolommen in de richting van de beweging aflopen
+  const order=[...Array(N).keys()];if(vec[0]===1||vec[1]===1)order.reverse();
+  let moved=false, gained=0;const gone=[], merged=[];
+  for(const a of order)for(const b of order){
+    const r=vec[0]?a:b, c=vec[0]?b:a;   // a loopt in de bewegingsrichting
+    const t=grid[r][c];if(!t)continue;
+    let nr=r,nc=c;
+    while(true){
+      const tr=nr+vec[0],tc=nc+vec[1];
+      if(tr<0||tc<0||tr>=N||tc>=N)break;
+      const o=grid[tr][tc];
+      if(!o){nr=tr;nc=tc;continue;}
+      if(o.v===t.v&&!o.mergedNow){   // samensmelten
+        grid[r][c]=null;o.mergedNow=true;o.v*=2;gained+=o.v;
+        t.r=tr;t.c=tc;gone.push(t);merged.push(o);moved=true;nr=null;
+      }
+      break;
+    }
+    if(nr===null)continue;
+    if(nr!==r||nc!==c){grid[r][c]=null;grid[nr][nc]=t;t.r=nr;t.c=nc;moved=true;}
+  }
+  tiles.forEach(t=>delete t.mergedNow);
+  if(!moved){return;}
+  prev=before;
+  busy=true;
+  for(const t of tiles)place(t);
+  score+=gained;$('score').textContent=score;
+  if(score>best){best=score;$('best').textContent=best;try{localStorage.setItem('2048-best',best)}catch(e){}}
+  if(gained)beep(300+Math.log2(Math.max(...merged.map(m=>m.v)))*45,0.07);else beep(220,0.03,'sine',0.05);
+  setTimeout(()=>{
+    for(const t of gone){t.el.remove();tiles.splice(tiles.indexOf(t),1);}
+    for(const m of merged){paint(m);m.el.classList.remove('new','merged');void m.el.offsetWidth;m.el.classList.add('merged');}
+    addRandom();busy=false;$('undo').disabled=false;save();
+    if(!won&&tiles.some(t=>t.v>=2048)){won=true;save();setTimeout(showWin,250);}
+    else if(!canMove())setTimeout(gameOver,300);
+  },115);
+}
+function canMove(){
+  if(tiles.length<N*N)return true;
+  const g=[...Array(N)].map(()=>Array(N).fill(0));for(const t of tiles)g[t.r][t.c]=t.v;
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){if(c<N-1&&g[r][c]===g[r][c+1])return true;if(r<N-1&&g[r][c]===g[r+1][c])return true;}
+  return false;
+}
+function undo(){
+  if(!prev||busy||(state!=='play'&&state!=='over'))return;
+  restore(prev);prev=null;$('undo').disabled=true;state='play';$('over').hidden=true;save();beep(440,0.05);
+}
+
+function showWin(){
+  [523,659,784,1047].forEach((f,k)=>setTimeout(()=>beep(f,0.12),k*110));
+  $('winscore').textContent=score;state='paused';$('win').hidden=false;$('keep').focus();
+}
+function gameOver(){
+  state='over';beep(130,0.4,'sawtooth',0.07);
+  const top=Math.max(...tiles.map(t=>t.v));
+  $('final').textContent=score;
+  $('overmsg').textContent='punten · hoogste tegel '+top+(score>=best&&score>0?' · nieuw record!':'');
+  $('overundo').hidden=!prev;
+  setTimeout(()=>{$('over').hidden=false;$('again').focus();},300);
+}
+
+function newGame(){
+  tiles.forEach(t=>t.el.remove());tiles=[];score=0;won=false;keepGoing=false;prev=null;
+  $('score').textContent=0;$('undo').disabled=true;
+  ['start','win','over'].forEach(id=>$(id).hidden=true);
+  state='play';addRandom();addRandom();save();
+}
+function resume(){
+  const s=loadSave();if(!s)return newGame();
+  ['start','win','over'].forEach(id=>$(id).hidden=true);
+  restore(s);prev=s.prev||null;$('undo').disabled=!prev;state='play';
+  if(!canMove())gameOver();
+}
+
+/* ---------- invoer ---------- */
+let sw=null;
+$('wrap').addEventListener('pointerdown',e=>{
+  if(e.target.closest('.overlay,.home,.sndbtn,.actions'))return;
+  sw={x:e.clientX,y:e.clientY,id:e.pointerId};
+});
+addEventListener('pointerup',e=>{
+  if(!sw||e.pointerId!==sw.id)return;
+  const dx=e.clientX-sw.x, dy=e.clientY-sw.y;sw=null;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<24)return;
+  move(Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up'));
+});
+addEventListener('pointercancel',()=>{sw=null;});
+addEventListener('keydown',e=>{
+  const d={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down',KeyA:'left',KeyD:'right',KeyW:'up',KeyS:'down'}[e.code];
+  if(d&&state==='play'){e.preventDefault();move(d);}
+  if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undo();}
+});
+
+$('go').addEventListener('click',newGame);
+$('resume').addEventListener('click',resume);
+$('again').addEventListener('click',newGame);
+$('winnew').addEventListener('click',newGame);
+$('keep').addEventListener('click',()=>{keepGoing=true;$('win').hidden=true;state='play';save();});
+$('overundo').addEventListener('click',undo);
+$('undo').addEventListener('click',undo);
+$('restart').addEventListener('click',()=>{if(state==='play'&&tiles.length>2&&!confirm('Nieuw spel beginnen? Je huidige spel gaat verloren.'))return;newGame();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
+
+fit();$('undo').disabled=true;
+const saved=loadSave();
+$('resume').hidden=!saved;
+if(saved)$('resume').textContent='Verder spelen · '+saved.score+' punten';
+</script>
+
+</body></html>
