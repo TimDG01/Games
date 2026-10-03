@@ -80,7 +80,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=3.4"></script>
+<script src="../../version.js?v=3.5"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -113,7 +113,11 @@ function beep(f,d=0.07,type='triangle',v=0.1){
 }
 
 const rnd=Math.random, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const speed=()=>Math.min(270+level*14,440);
+// balsnelheid: stijgt per level; vanaf level 6 ook langzaam binnen een level (tot +20% na een minuut op hoge levels)
+let lvlT=0;
+const speed=()=>Math.min(270+level*14,520)*(1+Math.min(clamp((level-5)*0.033,0,0.2),lvlT/300));
+// plankje wordt vanaf level 7 smaller
+const padW=()=>Math.max(54,72-Math.max(0,level-6)*2);
 
 /* --- levels: willekeurig patroon, altijd links-rechts gespiegeld --- */
 const HALF=COLS/2;
@@ -132,12 +136,12 @@ function makeLevel(L){
   const R=Math.min(6+Math.floor((L-1)*0.7),14);
   const names=Object.keys(PATTERNS);
   const name=L===1?'vol':names[1+Math.floor(rnd()*(names.length-1))];
-  const p2=clamp((L-1)*0.08,0,0.45), p3=clamp((L-4)*0.05,0,0.3), pS=L>=5?Math.min(0.09,(L-4)*0.015):0;
+  const p2=clamp((L-1)*0.08,0,0.45), p3=clamp((L-4)*0.05,0,0.35), p4=clamp((L-9)*0.04,0,0.25), pS=L>=5?Math.min(0.15,(L-4)*0.015):0;
   const hue0=rnd()*360, out=[];
   for(let r=0;r<R;r++)for(let c=0;c<HALF;c++){
     if(!PATTERNS[name](r,c,R))continue;
     const q=rnd();
-    const steel=r<R-1&&q<pS, hp=steel?1:q<p3?3:q<p3+p2?2:1;
+    const steel=r<R-1&&q<pS, q2=rnd(), hp=steel?1:q2<p4?4:q2<p4+p3?3:q2<p4+p3+p2?2:1;
     for(const cc of[c,COLS-1-c])
       out.push({x:BX+cc*BW+GAP/2,y:BY+r*(BH+GAP),w:BW-GAP,h:BH,hp,max:hp,steel,hue:(hue0+r*14)%360,alive:true});
   }
@@ -148,7 +152,7 @@ function makeLevel(L){
 
 function newBall(){return{x:paddle.x,y:paddle.y-7,vx:0,vy:0,r:6,stuck:true};}
 function startLevel(){
-  bricks=makeLevel(level);balls=[newBall()];drops=[];paddle.wideT=0;fastT=0;laserT=0;shots=[];banner=1.6;
+  bricks=makeLevel(level);lvlT=0;balls=[newBall()];drops=[];paddle.wideT=0;fastT=0;laserT=0;shots=[];banner=1.6;
   $('level').textContent=level;
 }
 function reset(){
@@ -173,7 +177,7 @@ function hitBrick(b){
   if(b.hp>0){beep(300+b.hp*80,0.05);addScore(5);return;}
   b.alive=false;addScore(10*b.max);beep(520+rnd()*200,0.06);
   for(let i=0;i<8;i++)parts.push({x:b.x+b.w/2,y:b.y+b.h/2,vx:(rnd()-0.5)*220,vy:(rnd()-0.7)*200,t:0.6,hue:b.hue});
-  if(rnd()<0.15){
+  if(rnd()<Math.max(0.09,0.15-Math.max(0,level-8)*0.006)){
     const q=rnd(), type=q<0.24?'breed':q<0.46?'multi':q<0.60?'snel':q<0.933?'laser':'leven';
     drops.push({x:b.x+b.w/2,y:b.y+b.h/2,type});
   }
@@ -226,11 +230,12 @@ function moveBall(b,h){
 
 function update(dt){
   // plankje
-  const target=paddle.wideT>0?112:72;
+  const target=padW()+(paddle.wideT>0?40:0);
   paddle.w+=(target-paddle.w)*Math.min(1,dt*10);
   if(paddle.wideT>0)paddle.wideT-=dt;
   // snel-capsule: ballen lopen een tijdje 40% sneller
   if(fastT>0)fastT-=dt;
+  if(!balls.some(b=>b.stuck))lvlT+=dt;
   const bt=dt*(fastT>0?1.4:1);
   // laser-capsule: het plankje schiet vanzelf uit beide hoeken
   if(laserT>0){
@@ -265,7 +270,7 @@ function update(dt){
   drops=drops.filter(d=>!d.got&&d.y<FH+20);
 
   if(!balls.length){
-    lives--;showLives();beep(140,0.3,'sawtooth',0.07);
+    lives--;lvlT=0;showLives();beep(140,0.3,'sawtooth',0.07);
     if(lives<=0)return end();
     balls=[newBall()];drops=[];paddle.wideT=0;fastT=0;laserT=0;shots=[];
   }
@@ -331,12 +336,13 @@ function draw(t){
       ctx.fillStyle='#3d4460';ctx.fillRect(k.x+4,k.y+k.h-5,3,3);ctx.fillRect(k.x+k.w-7,k.y+k.h-5,3,3);
       continue;
     }
-    const l=48+k.hp*7;
+    const l=46+k.hp*7;
     ctx.fillStyle=`hsl(${k.hue},65%,${l}%)`;rr(k.x,k.y,k.w,k.h,2);
     ctx.fillStyle=`hsl(${k.hue},75%,${l+14}%)`;ctx.fillRect(k.x+1,k.y+1,k.w-2,3);
     // stevige stenen krijgen streepjes
     ctx.fillStyle='rgba(11,15,29,0.45)';
-    for(let i=1;i<k.hp;i++)ctx.fillRect(k.x+k.w/2-9+(i-1)*12,k.y+k.h/2-1,6,3);
+    const ns=k.hp-1, sw=ns*6+(ns-1)*4;
+    for(let i=0;i<ns;i++)ctx.fillRect(k.x+k.w/2-sw/2+i*10,k.y+k.h/2-1,6,3);
   }
   for(const p of parts){
     ctx.globalAlpha=Math.max(0,p.t/0.6);ctx.fillStyle=`hsl(${p.hue},70%,65%)`;ctx.fillRect(p.x-2,p.y-2,4,4);

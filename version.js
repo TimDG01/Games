@@ -1,5 +1,5 @@
 // Versie van de site. Verhoog met tools/bump-version.sh, dat ook de verwijzingen in alle pagina's bijwerkt.
-const SITE_VERSION = '3.4';
+const SITE_VERSION = '3.5';
 
 // Staat er online al een nieuwere versie? Dan meteen de verse pagina laden, één keer per versie.
 (function(){
