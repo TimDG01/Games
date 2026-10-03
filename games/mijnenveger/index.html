@@ -17,7 +17,7 @@
 *{box-sizing:border-box}
 html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-family:var(--body);
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
-#wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+#wrap{position:fixed;inset:0;touch-action:none;display:flex;flex-direction:column;align-items:center;
   padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 14px)}
 .top{width:100%;max-width:520px;height:44px;display:grid;grid-template-columns:44px 1fr 1fr 44px;align-items:center;gap:8px}
 .stat{text-align:center;line-height:1}
@@ -25,7 +25,7 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 .stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
 #best{margin-top:8px;font-size:13px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;text-align:center}
 .stage{flex:1;width:100%;display:grid;place-items:center;min-height:0}
-#board{display:grid;gap:2px;padding:2px;background:#2f3860;border-radius:4px;touch-action:manipulation}
+#board{display:grid;gap:2px;padding:2px;background:#2f3860;border-radius:4px;touch-action:none}
 .c{width:var(--cell);height:var(--cell);display:grid;place-items:center;border-radius:3px;background:#2a3358;
   box-shadow:inset 0 -3px 0 #1d2440, inset 0 2px 0 #36406a;
   font-family:var(--display);font-size:calc(var(--cell) * .55);line-height:1;cursor:pointer}
@@ -101,7 +101,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=3.2"></script>
+<script src="../../version.js?v=3.3"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -247,6 +247,10 @@ function win(){
 // tikken en lang indrukken
 let press=null;
 const board=$('board');
+// Safari zelf niets laten doen met aanrakingen op het veld (geen zoom bij dubbel tikken, geen menu bij lang drukken).
+// Het spel gebruikt pointer-events, die blijven gewoon werken.
+board.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
+board.addEventListener('dblclick',e=>e.preventDefault());
 board.addEventListener('pointerdown',e=>{
   const d=e.target.closest('.c');if(!d||e.button===2)return;
   const i=+d.dataset.i;
