@@ -82,7 +82,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=3.8"></script>
+<script src="../../version.js?v=3.9"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -101,7 +101,7 @@ addEventListener('resize',resize);resize();
 
 /* snelheid: tijd per stap aan het begin, kortste tijd, en hoeveel sneller per fruit (ms) */
 const LEVELS={
-  traag:  {start:220,min:110,per:3, key:'snake-best-traag', name:'Traag'},
+  traag:  {start:270,min:140,per:3, key:'snake-best-traag', name:'Traag'},
   normaal:{start:150,min:65, per:4, key:'snake-best',       name:'Normaal'},
   snel:   {start:100,min:45, per:3, key:'snake-best-snel',  name:'Snel'},
 };
