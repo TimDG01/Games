@@ -34,7 +34,7 @@ canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
 .panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.45}
 .ver{font-size:12px;color:var(--muted);letter-spacing:.08em}
 .big{font-family:var(--display);font-size:56px;line-height:1;color:var(--accent)}
-.legend{display:flex;justify-content:center;gap:14px;font-size:13px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 14px;font-size:13px;color:var(--muted)}
 .legend i{display:inline-grid;place-items:center;width:20px;height:14px;border-radius:7px;margin-right:4px;font-style:normal;font-size:10px;font-weight:600;color:#0b0f1d;vertical-align:-2px}
 button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
   padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
@@ -60,6 +60,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
       <div class="legend">
         <span><i style="background:#7bd88f">&#8596;</i>Breed</span>
         <span><i style="background:#6cb6ff">3</i>Ballen</span>
+        <span><i style="background:#b48cff">&#187;</i>Snel</span>
         <span><i style="background:#ff7a7a">&#9829;</i>Leven</span>
       </div>
       <p id="bestline">Record 0</p>
@@ -99,7 +100,7 @@ addEventListener('resize',resize);resize();
 let best=0; try{best=+localStorage.getItem('breakout-best')||0}catch(e){}
 $('bestline').textContent='Record '+best;
 
-let state='start',score,lives,level,bricks,balls,drops,parts,paddle,banner=0,keyDir=0;
+let fastT=0,state='start',score,lives,level,bricks,balls,drops,parts,paddle,banner=0,keyDir=0;
 
 /* geluid: kleine piep, start pas na de eerste tik */
 let ac=null;
@@ -146,7 +147,7 @@ function makeLevel(L){
 
 function newBall(){return{x:paddle.x,y:paddle.y-7,vx:0,vy:0,r:6,stuck:true};}
 function startLevel(){
-  bricks=makeLevel(level);balls=[newBall()];drops=[];paddle.wideT=0;banner=1.6;
+  bricks=makeLevel(level);balls=[newBall()];drops=[];paddle.wideT=0;fastT=0;banner=1.6;
   $('level').textContent=level;
 }
 function reset(){
@@ -172,7 +173,7 @@ function hitBrick(b){
   b.alive=false;addScore(10*b.max);beep(520+rnd()*200,0.06);
   for(let i=0;i<8;i++)parts.push({x:b.x+b.w/2,y:b.y+b.h/2,vx:(rnd()-0.5)*220,vy:(rnd()-0.7)*200,t:0.6,hue:b.hue});
   if(rnd()<0.12){
-    const q=rnd(), type=q<0.45?'breed':q<0.85?'multi':'leven';
+    const q=rnd(), type=q<0.35?'breed':q<0.65?'multi':q<0.85?'snel':'leven';
     drops.push({x:b.x+b.w/2,y:b.y+b.h/2,type});
   }
 }
@@ -180,6 +181,7 @@ function hitBrick(b){
 function catchDrop(d){
   beep(880,0.12,'sine',0.1);addScore(25);
   if(d.type==='breed')paddle.wideT=12;
+  else if(d.type==='snel')fastT=8;
   else if(d.type==='leven'){lives=Math.min(lives+1,6);showLives();}
   else{
     launch();
@@ -224,14 +226,18 @@ function update(dt){
   const target=paddle.wideT>0?112:72;
   paddle.w+=(target-paddle.w)*Math.min(1,dt*10);
   if(paddle.wideT>0)paddle.wideT-=dt;
+  // snel-capsule: ballen lopen een tijdje 40% sneller
+  if(fastT>0)fastT-=dt;
+  const bt=dt*(fastT>0?1.4:1);
   if(keyDir)paddle.x+=keyDir*520*dt;
   paddle.x=clamp(paddle.x,paddle.w/2,FW-paddle.w/2);
   if(banner>0)banner-=dt;
 
   for(const b of balls){
     if(b.stuck){b.x=paddle.x;b.y=paddle.y-b.r;continue;}
-    const n=Math.ceil(Math.hypot(b.vx,b.vy)*dt/3);
-    for(let i=0;i<n;i++)moveBall(b,dt/n);
+    const n=Math.ceil(Math.hypot(b.vx,b.vy)*bt/3);
+    for(let i=0;i<n;i++)moveBall(b,bt/n);
+    if(fastT>0){(b.trail||(b.trail=[])).unshift({x:b.x,y:b.y});b.trail.length=Math.min(b.trail.length,6);}else b.trail=null;
   }
   balls=balls.filter(b=>b.y<FH+30);
   for(const d of drops){
@@ -243,7 +249,7 @@ function update(dt){
   if(!balls.length){
     lives--;showLives();beep(140,0.3,'sawtooth',0.07);
     if(lives<=0)return end();
-    balls=[newBall()];drops=[];paddle.wideT=0;
+    balls=[newBall()];drops=[];paddle.wideT=0;fastT=0;
   }
   if(bricks.every(k=>!k.alive||k.steel)){
     addScore(100*level);level++;
@@ -289,7 +295,7 @@ addEventListener('keyup',e=>{
 
 /* --- tekenen --- */
 function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y,w,h,r):ctx.rect(x,y,w,h);ctx.fill();}
-const DROP={breed:['#7bd88f','↔'],multi:['#6cb6ff','3'],leven:['#ff7a7a','♥']};
+const DROP={breed:['#7bd88f','↔'],multi:['#6cb6ff','3'],snel:['#b48cff','»'],leven:['#ff7a7a','♥']};
 
 function draw(t){
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -327,8 +333,14 @@ function draw(t){
   ctx.fillStyle=paddle.wideT>0?'#7bd88f':'#ffb347';
   rr(paddle.x-paddle.w/2,paddle.y,paddle.w,paddle.h,6);
   ctx.fillStyle='rgba(255,255,255,0.35)';ctx.fillRect(paddle.x-paddle.w/2+6,paddle.y+2,paddle.w-12,2);
-  ctx.fillStyle='#f4f0e6';
+  for(const b of balls)if(b.trail)b.trail.forEach((p,i)=>{
+    ctx.globalAlpha=0.35*(1-i/6);ctx.fillStyle='#ffb347';ctx.beginPath();ctx.arc(p.x,p.y,b.r*(1-i/8),0,Math.PI*2);ctx.fill();});
+  ctx.globalAlpha=1;
+  ctx.fillStyle=fastT>0?'#ffb347':'#f4f0e6';
   for(const b of balls){ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();}
+  if(fastT>0){ // balkje dat aftelt
+    ctx.fillStyle='#b48cff';ctx.fillRect(FW/2-40,FH-12,80*Math.min(1,fastT/8),4);
+  }
 
   if(banner>0&&state==='play'){
     ctx.globalAlpha=Math.min(1,banner*2);
