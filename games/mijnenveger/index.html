@@ -19,7 +19,7 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 #wrap{position:fixed;inset:0;touch-action:none;display:flex;flex-direction:column;align-items:center;
   padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 14px)}
-.top{width:100%;max-width:520px;height:44px;display:grid;grid-template-columns:44px 1fr 1fr 44px;align-items:center;gap:8px}
+.top{width:100%;max-width:520px;height:44px;display:grid;grid-template-columns:40px 1fr 1fr 40px 40px;align-items:center;gap:6px}
 .stat{text-align:center;line-height:1}
 .stat b{display:block;font-family:var(--display);font-weight:400;font-size:26px;font-variant-numeric:tabular-nums}
 .stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
@@ -69,6 +69,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
     <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
     <div class="stat"><b id="left">0</b><span>Mijnen</span></div>
     <div class="stat"><b id="time">0</b><span>Tijd</span></div>
+    <button class="sndbtn" aria-label="Geluid aan of uit"></button>
     <button class="restart" id="restart" aria-label="Opnieuw beginnen">&#8635;</button>
   </div>
   <div id="best">Record –</div>
@@ -103,7 +104,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=3.7"></script>
+<script src="../../version.js?v=3.8"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}

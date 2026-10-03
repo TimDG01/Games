@@ -32,5 +32,6 @@ Safari's zoom en stuurt zelf de klik door, zodat de tik gewoon telt. In de games
 Elke pagina die `version.js` laadt, krijgt dat vanzelf.
 
 Geluid: `version.js` zet een knop "Geluid aan/uit" op het start- en eindscherm (`.overlay .panel`) van elke game,
-en de toets M wisselt ook. De keuze geldt voor alle games. Laat een nieuwe game in zijn geluidsfunctie eerst
+en koppelt elk `<button class="sndbtn">` (het luidsprekertje rechtsboven) zodat je ook tijdens het spelen kunt wisselen.
+De toets M wisselt ook. De keuze geldt voor alle games. Laat een nieuwe game in zijn geluidsfunctie eerst
 `if(window.SITE_SOUND&&!SITE_SOUND.on)return;` doen.

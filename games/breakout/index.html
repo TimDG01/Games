@@ -52,7 +52,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
     <div class="stat"><b id="score">0</b><span>Score</span></div>
     <div class="stat"><b id="level">1</b><span>Level</span></div>
     <div class="stat"><b id="lives">&#9829;&#9829;&#9829;</b><span>Levens</span></div>
-    <div></div>
+    <button class="sndbtn" aria-label="Geluid aan of uit"></button>
   </div>
 
   <div class="overlay" id="start">
@@ -82,7 +82,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=3.7"></script>
+<script src="../../version.js?v=3.8"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -301,7 +301,7 @@ $('again').addEventListener('click',start);
 // besturing: vinger of muis volgen, tik lanceert
 function aim(e){paddle&&(paddle.x=(e.clientX-fx)/S);}
 $('wrap').addEventListener('pointerdown',e=>{
-  if(state!=='play'||e.target.closest('.overlay,.home'))return;
+  if(state!=='play'||e.target.closest('.overlay,.home,.sndbtn'))return;
   e.preventDefault();aim(e);launch();
 });
 $('wrap').addEventListener('pointermove',e=>{

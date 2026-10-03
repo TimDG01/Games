@@ -23,6 +23,7 @@ canvas{display:block;width:100%;height:100%}
 #best{margin-top:6px;font-size:13px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
 #combo{margin-top:10px;font-family:var(--display);font-size:18px;color:var(--accent);opacity:0;transition:opacity .2s}
 #combo.on{opacity:1}
+.sndbtn{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:calc(env(safe-area-inset-right,0px) + 12px)}
 .overlay{position:absolute;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62)}
 .overlay[hidden]{display:none}
 .panel{background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:28px 24px;max-width:320px;width:100%;text-align:center;
@@ -42,6 +43,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
 
 <div id="wrap">
   <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
+  <button class="sndbtn" aria-label="Geluid aan of uit"></button>
   <canvas id="c"></canvas>
   <div class="hud">
     <div id="score">0</div>
@@ -68,7 +70,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=3.7"></script>
+<script src="../../version.js?v=3.8"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -150,7 +152,7 @@ function start(){$('start').hidden=true;$('over').hidden=true;reset();state='pla
 $('go').addEventListener('click',start);
 $('again').addEventListener('click',start);
 $('wrap').addEventListener('pointerdown',e=>{
-  if(state!=='play'||e.target.closest('.overlay,.home'))return;
+  if(state!=='play'||e.target.closest('.overlay,.home,.sndbtn'))return;
   e.preventDefault();drop();
 });
 addEventListener('keydown',e=>{if(e.code==='Space'&&state==='play'){e.preventDefault();drop();}});

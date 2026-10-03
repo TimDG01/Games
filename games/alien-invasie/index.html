@@ -55,7 +55,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
     <div class="stat"><b id="score">0</b><span>Score</span></div>
     <div class="stat"><b id="wave">1</b><span>Golf</span></div>
     <div class="stat"><b id="lives">&#9650;&#9650;&#9650;</b><span>Levens</span></div>
-    <div></div>
+    <button class="sndbtn" aria-label="Geluid aan of uit"></button>
   </div>
 
   <div class="overlay" id="start">
@@ -89,7 +89,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=3.7"></script>
+<script src="../../version.js?v=3.8"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -383,7 +383,7 @@ $('again').addEventListener('click',start);
 // besturing: vinger of muis volgen, zolang je drukt schiet het schip vanzelf
 function aim(e){if(player)player.x=(e.clientX-fx)/S;}
 $('wrap').addEventListener('pointerdown',e=>{
-  if(state!=='play'||e.target.closest('.overlay,.home'))return;
+  if(state!=='play'||e.target.closest('.overlay,.home,.sndbtn'))return;
   e.preventDefault();holding=true;aim(e);
 });
 $('wrap').addEventListener('pointermove',e=>{

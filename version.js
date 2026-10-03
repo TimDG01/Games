@@ -1,5 +1,5 @@
 // Versie van de site. Verhoog met tools/bump-version.sh, dat ook de verwijzingen in alle pagina's bijwerkt.
-const SITE_VERSION = '3.7';
+const SITE_VERSION = '3.8';
 
 // Staat er online al een nieuwere versie? Dan meteen de verse pagina laden, één keer per versie.
 (function(){
@@ -47,18 +47,26 @@ const SITE_VERSION = '3.7';
 })();
 
 // Geluid aan/uit, gedeeld door alle games. Elke game vraagt SITE_SOUND.on voor hij een geluid maakt.
-// Op het start- en eindscherm van elke game komt een knop; op de computer werkt ook de toets M.
+// Op het start- en eindscherm van elke game komt een knop, en een luidsprekertje (.sndbtn) bovenaan werkt ook
+// tijdens het spelen. Op de computer werkt ook de toets M.
 window.SITE_SOUND=(function(){
   let on=true;try{on=localStorage.getItem('geluid')!=='uit'}catch(e){}
   const api={get on(){return on},set(v){on=v;try{localStorage.setItem('geluid',v?'aan':'uit')}catch(e){}refresh();}};
   const label=()=>on?'\u{1F50A} Geluid aan':'\u{1F507} Geluid uit';
-  function refresh(){document.querySelectorAll('.snd').forEach(b=>{b.textContent=label();b.setAttribute('aria-pressed',on);});}
+  function refresh(){
+    document.querySelectorAll('.snd').forEach(b=>{b.textContent=label();b.setAttribute('aria-pressed',on);});
+    document.querySelectorAll('.sndbtn').forEach(b=>{b.textContent=on?'\u{1F50A}':'\u{1F507}';b.setAttribute('aria-pressed',on);b.title=on?'Geluid uitzetten':'Geluid aanzetten';});
+  }
   if(/\/games\//.test(location.pathname)){
     const add=()=>{
       const st=document.createElement('style');
       st.textContent='.panel .snd{font-family:inherit;font-size:14px;font-weight:600;color:#9097b5;background:transparent;border:2px solid #2f3860;'+
-        'border-radius:4px;padding:8px 12px;box-shadow:none;align-self:center;cursor:pointer}.panel .snd:active{transform:none;box-shadow:none}';
+        'border-radius:4px;padding:8px 12px;box-shadow:none;align-self:center;cursor:pointer}.panel .snd:active{transform:none;box-shadow:none}'+
+        '.sndbtn{pointer-events:auto;width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);'+
+        'border:0;padding:0;font-size:17px;line-height:1;cursor:pointer;z-index:5;box-shadow:none;color:#f4f0e6}'+
+        '.sndbtn:active{transform:none;box-shadow:none}.sndbtn:focus-visible{outline:3px solid #f4f0e6;outline-offset:2px}';
       document.head.appendChild(st);
+      document.querySelectorAll('.sndbtn').forEach(b=>{b.type='button';b.addEventListener('click',e=>{e.stopPropagation();api.set(!on);b.blur();});});
       document.querySelectorAll('.overlay .panel').forEach(p=>{
         const b=document.createElement('button');b.type='button';b.className='snd';
         b.addEventListener('click',()=>api.set(!on));
