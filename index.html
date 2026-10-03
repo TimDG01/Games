@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Games</title>
+<meta name="description" content="Een verzameling kleine browsergames.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;600&display=swap">
+<style>
+/* Zelfde huisstijl als de games: donkerblauw, oranje accent, Bungee + Outfit */
+:root{
+  --bg:#141a2e; --bg-deep:#0b0f1d; --fg:#f4f0e6; --muted:#9097b5; --accent:#ffb347; --accent-deep:#b86e14; --panel:#1d2440;
+  --display:'Bungee', Impact, 'Arial Black', sans-serif;
+  --body:'Outfit', system-ui, -apple-system, sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);-webkit-tap-highlight-color:transparent}
+body{min-height:100vh;display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top,0px) + 40px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 24px) max(16px,env(safe-area-inset-left,0px))}
+main{width:100%;max-width:960px;margin:0 auto;flex:1}
+
+header{margin-bottom:36px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(44px,12vw,84px);line-height:.95;margin:0}
+h1 span{color:var(--accent)}
+.intro{margin:12px 0 0;color:var(--muted);font-size:17px;line-height:1.45;max-width:46ch}
+
+.grid{list-style:none;margin:0;padding:0;display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.card{display:flex;flex-direction:column;height:100%;background:var(--panel);border:2px solid transparent;border-radius:6px;
+  color:inherit;text-decoration:none;overflow:hidden;box-shadow:6px 6px 0 var(--bg-deep);transition:transform .12s,box-shadow .12s,border-color .12s}
+.card:hover{border-color:var(--accent);transform:translate(-2px,-2px);box-shadow:8px 8px 0 var(--bg-deep)}
+.card:active{transform:translate(2px,2px);box-shadow:3px 3px 0 var(--bg-deep)}
+.card:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+.thumb{aspect-ratio:16/9;display:block;width:100%}
+.body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:8px;flex:1}
+.card h2{font-family:var(--display);font-weight:400;font-size:22px;line-height:1.1;margin:0}
+.card p{margin:0;color:var(--muted);font-size:15px;line-height:1.45}
+.meta{margin-top:auto;padding-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.play{font-family:var(--display);letter-spacing:0;font-size:15px;color:var(--bg-deep);background:var(--accent);border-radius:4px;
+  padding:6px 12px;box-shadow:0 3px 0 var(--accent-deep)}
+.best{color:var(--accent)}
+
+.soon{border:2px dashed #2f3860;border-radius:6px;display:grid;place-items:center;min-height:200px;padding:24px;text-align:center;
+  color:var(--muted);font-size:15px}
+
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Games<span>.</span></h1>
+    <p class="intro">Kleine spelletjes voor tussendoor. Werken op je telefoon en op de computer, zonder installatie.</p>
+  </header>
+
+  <ul class="grid" id="games"></ul>
+</main>
+
+<script>
+/*
+  Een nieuwe game toevoegen:
+  1. Zet de game in games/<naam>/index.html
+  2. Voeg hieronder een regel toe aan GAMES.
+     - bestKey (optioneel): localStorage-sleutel waar de game het record bewaart
+     - thumb: SVG-inhoud voor een viewBox van 160×90
+*/
+const GAMES = [
+  {
+    title: 'Toren Stapelaar',
+    href: 'games/toren-stapelaar/',
+    description: 'Laat schuivende blokken op elkaar vallen. Wat over de rand hangt, valt eraf. Hoe hoog kom jij?',
+    tag: 'Behendigheid',
+    bestKey: 'stapel-best',
+    bestLabel: n => n === 1 ? '1 verdieping' : n + ' verdiepingen',
+    thumb: `
+      <rect width="160" height="90" fill="#10162a"/>
+      <rect y="78" width="160" height="12" fill="#1a2038"/>
+      <rect x="50" y="68" width="60" height="10" fill="hsl(200,65%,60%)"/>
+      <rect x="54" y="58" width="52" height="10" fill="hsl(206,65%,60%)"/>
+      <rect x="54" y="48" width="44" height="10" fill="hsl(212,65%,60%)"/>
+      <rect x="58" y="38" width="40" height="10" fill="hsl(218,65%,60%)"/>
+      <rect x="58" y="28" width="40" height="10" fill="hsl(224,65%,60%)"/>
+      <rect x="92" y="14" width="40" height="10" fill="hsl(230,65%,64%)"/>
+      <rect x="112" y="40" width="8" height="10" fill="hsl(212,65%,55%)" transform="rotate(18 116 45)"/>`
+  },
+];
+
+function readBest(key){
+  try { return +localStorage.getItem(key) || 0 } catch(e) { return 0 }
+}
+
+const list = document.getElementById('games');
+for (const g of GAMES) {
+  const best = g.bestKey ? readBest(g.bestKey) : 0;
+  const li = document.createElement('li');
+  li.innerHTML = `
+    <a class="card" href="${g.href}">
+      <svg class="thumb" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${g.thumb}</svg>
+      <div class="body">
+        <h2></h2>
+        <p></p>
+        <div class="meta">
+          <span class="tag"></span>
+          <span class="play">Speel</span>
+        </div>
+      </div>
+    </a>`;
+  li.querySelector('h2').textContent = g.title;
+  li.querySelector('p').textContent = g.description;
+  const tag = li.querySelector('.tag');
+  if (best > 0) {
+    tag.classList.add('best');
+    tag.textContent = 'Record: ' + (g.bestLabel ? g.bestLabel(best) : best);
+  } else {
+    tag.textContent = g.tag || '';
+  }
+  list.appendChild(li);
+}
+
+const soon = document.createElement('li');
+soon.innerHTML = '<div class="soon">Binnenkort meer games</div>';
+list.appendChild(soon);
+</script>
+</body>
+</html>

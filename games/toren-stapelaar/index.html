@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+</head><body>
+<title>Toren Stapelaar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;600&display=swap">
+<style>
+/* Layout: één scherm vullend canvas, score bovenaan, panelen in het midden */
+:root{
+  --bg:#141a2e; --bg-deep:#0b0f1d; --fg:#f4f0e6; --muted:#9097b5; --accent:#ffb347; --panel:#1d2440;
+  --display:'Bungee', Impact, 'Arial Black', sans-serif;
+  --body:'Outfit', system-ui, -apple-system, sans-serif;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#wrap{position:fixed;inset:0;touch-action:none}
+canvas{display:block;width:100%;height:100%}
+.hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 18px);left:0;right:0;text-align:center;pointer-events:none}
+#score{font-family:var(--display);font-size:clamp(52px,15vw,88px);line-height:1;font-variant-numeric:tabular-nums}
+#best{margin-top:6px;font-size:13px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+#combo{margin-top:10px;font-family:var(--display);font-size:18px;color:var(--accent);opacity:0;transition:opacity .2s}
+#combo.on{opacity:1}
+.overlay{position:absolute;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62)}
+.panel{background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:28px 24px;max-width:320px;width:100%;text-align:center;
+  display:flex;flex-direction:column;gap:14px;box-shadow:8px 8px 0 var(--bg-deep)}
+.panel h1{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.05;margin:0;text-wrap:balance}
+.panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.45}
+.big{font-family:var(--display);font-size:56px;line-height:1;color:var(--accent)}
+button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
+  padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
+button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+.home{position:absolute;z-index:2;top:calc(env(safe-area-inset-top,0px) + 12px);left:calc(env(safe-area-inset-left,0px) + 12px);
+  width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
+.home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+</style>
+
+<div id="wrap">
+  <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
+  <canvas id="c"></canvas>
+  <div class="hud">
+    <div id="score">0</div>
+    <div id="best">Record 0</div>
+    <div id="combo">Perfect!</div>
+  </div>
+
+  <div class="overlay" id="start">
+    <div class="panel">
+      <h1>Toren Stapelaar</h1>
+      <p>Tik ergens op het scherm om het schuivende blok te laten vallen. Wat over de rand hangt, valt eraf. Drie keer perfect op rij en je blok groeit weer aan.</p>
+      <button id="go">Start</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="over" hidden>
+    <div class="panel">
+      <h1>Toren ingestort</h1>
+      <div class="big" id="final">0</div>
+      <p id="overmsg">verdiepingen</p>
+      <button id="again">Opnieuw</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+let W,H,dpr;
+function resize(){dpr=Math.min(window.devicePixelRatio||1,3);W=innerWidth;H=innerHeight;
+  cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
+addEventListener('resize',resize);resize();
+
+let best=0; try{best=+localStorage.getItem('stapel-best')||0}catch(e){}
+$('best').textContent='Record '+best;
+
+let stack=[],cur=null,dir=1,score=0,combo=0,chips=[],cam=0,camT=0,state='start',hue0=200,pulse=0,maxW=300;
+const BH=()=>Math.max(24,Math.min(36,H/20));
+const ground=()=>H-Math.max(90,H*0.14);
+const yOf=i=>ground()-(i+1)*BH()+cam;
+const hue=i=>(hue0+i*6)%360;
+const speed=()=>Math.min(W*0.55+score*W*0.025,W*1.5);
+
+function reset(){
+  maxW=Math.min(W*0.62,300);
+  stack=[{x:(W-maxW)/2,w:maxW}];
+  hue0=Math.random()*360;score=0;combo=0;chips=[];cam=0;camT=0;pulse=0;
+  $('score').textContent=0;$('combo').classList.remove('on');
+  spawn();
+}
+function spawn(){
+  const top=stack[stack.length-1];
+  dir=stack.length%2?1:-1;
+  cur={x:dir>0?0:W-top.w,w:top.w};
+}
+
+/* geluid: kleine piep, start pas na de eerste tik */
+let ac=null;
+function beep(f,d=0.09,type='triangle',v=0.12){
+  try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+d);
+    o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d);}catch(e){}
+}
+
+function drop(){
+  const top=stack[stack.length-1], i=stack.length;
+  const left=Math.max(cur.x,top.x), right=Math.min(cur.x+cur.w,top.x+top.w), ov=right-left;
+  if(ov<=0){
+    chips.push({x:cur.x,w:cur.w,y:yOf(i)-cam,vy:0,vx:dir*80,r:0,vr:dir*2,h:hue(i)});
+    cur=null;beep(110,0.4,'sawtooth',0.08);return end();
+  }
+  if(Math.abs(cur.x-top.x)<5){
+    combo++;
+    let w=top.w,x=top.x;
+    if(combo>=3&&w<maxW){const g=Math.min(10,maxW-w);w+=g;x-=g/2;}
+    stack.push({x,w});pulse=1;
+    beep(440*Math.pow(1.122,Math.min(combo,12)),0.14);
+    $('combo').textContent=combo>1?'Perfect ×'+combo:'Perfect!';$('combo').classList.add('on');
+  }else{
+    combo=0;$('combo').classList.remove('on');
+    if(cur.x<top.x) chips.push({x:cur.x,w:top.x-cur.x,y:yOf(i)-cam,vy:0,vx:-60,r:0,vr:-1.5,h:hue(i)});
+    else chips.push({x:right,w:cur.x+cur.w-right,y:yOf(i)-cam,vy:0,vx:60,r:0,vr:1.5,h:hue(i)});
+    stack.push({x:left,w:ov});beep(300,0.07);
+  }
+  score++;$('score').textContent=score;
+  camT=Math.max(0,(stack.length+1)*BH()-(ground()-H*0.42));
+  spawn();
+}
+
+function end(){
+  state='over';
+  const rec=score>best;
+  if(rec){best=score;try{localStorage.setItem('stapel-best',best)}catch(e){}}
+  $('best').textContent='Record '+best;
+  $('final').textContent=score;
+  $('overmsg').textContent=(score===1?'verdieping':'verdiepingen')+(rec&&score>0?' · nieuw record!':'');
+  setTimeout(()=>{$('over').hidden=false;$('again').focus();},700);
+}
+
+function start(){$('start').hidden=true;$('over').hidden=true;reset();state='play';beep(520,0.08);}
+$('go').addEventListener('click',start);
+$('again').addEventListener('click',start);
+$('wrap').addEventListener('pointerdown',e=>{
+  if(state!=='play'||e.target.closest('.overlay,.home'))return;
+  e.preventDefault();drop();
+});
+addEventListener('keydown',e=>{if(e.code==='Space'&&state==='play'){e.preventDefault();drop();}});
+
+function block(x,y,w,h,hh,light=60){
+  ctx.fillStyle=`hsl(${hh},65%,${light}%)`;ctx.fillRect(x,y,w,h);
+  ctx.fillStyle=`hsl(${hh},75%,${light+14}%)`;ctx.fillRect(x,y,w,Math.max(3,h*0.16));
+  ctx.fillStyle=`hsl(${hh},55%,${light-16}%)`;ctx.fillRect(x,y+h-3,w,3);
+}
+
+let last=performance.now();
+function frame(t){
+  const dt=Math.min((t-last)/1000,0.05);last=t;
+  cam+=(camT-cam)*Math.min(1,dt*6);
+  if(state==='play'&&cur){
+    cur.x+=dir*speed()*dt;
+    if(cur.x+cur.w>W){cur.x=W-cur.w;dir=-1}
+    if(cur.x<0){cur.x=0;dir=1}
+  }
+  // lucht kleurt mee met de hoogte
+  const sh=hue(stack.length);
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,`hsl(${(sh+200)%360},35%,10%)`);g.addColorStop(1,`hsl(${(sh+180)%360},30%,18%)`);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+
+  const bh=BH();
+  // grond
+  ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(0,ground()+cam,W,H);
+  for(let i=0;i<stack.length;i++){
+    const y=yOf(i); if(y>H||y<-bh)continue;
+    block(stack[i].x,y,stack[i].w,bh,hue(i));
+  }
+  if(pulse>0&&stack.length){
+    const s=stack[stack.length-1],y=yOf(stack.length-1),p=(1-pulse)*16;
+    ctx.strokeStyle=`rgba(255,255,255,${pulse})`;ctx.lineWidth=2;
+    ctx.strokeRect(s.x-p,y-p,s.w+p*2,bh+p*2);pulse=Math.max(0,pulse-dt*2.5);
+  }
+  if(cur) block(cur.x,yOf(stack.length),cur.w,bh,hue(stack.length),64);
+  for(const c of chips){
+    c.vy+=1600*dt;c.y+=c.vy*dt;c.x+=c.vx*dt;c.r+=c.vr*dt;
+    ctx.save();ctx.translate(c.x+c.w/2,c.y+cam+bh/2);ctx.rotate(c.r);
+    block(-c.w/2,-bh/2,c.w,bh,c.h,55);ctx.restore();
+  }
+  chips=chips.filter(c=>c.y+cam<H+200);
+  requestAnimationFrame(frame);
+}
+reset();requestAnimationFrame(frame);
+</script>
+
+</body></html>
