@@ -27,5 +27,6 @@ Dat zet de versie ook in de verwijzing naar `version.js` in elke pagina. Elke pa
 een nieuwere versie staat en laadt die dan meteen, zodat telefoons niet op een oude kopie blijven hangen.
 Een nieuwe game laadt `version.js` dus met `<script src="../../version.js?v=…"></script>`.
 
-`version.js` zet ook dubbeltik-zoom uit (`touch-action: manipulation`) en blokkeert knijp-zoom in de games,
-omdat iPhones `user-scalable=no` negeren. Elke pagina die `version.js` laadt, krijgt dat vanzelf.
+`version.js` zet ook dubbeltik-zoom uit, omdat iPhones `user-scalable=no` negeren: een snelle tweede tik annuleert
+Safari's zoom en stuurt zelf de klik door, zodat de tik gewoon telt. In de games is ook knijp-zoom geblokkeerd.
+Elke pagina die `version.js` laadt, krijgt dat vanzelf.
