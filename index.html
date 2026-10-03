@@ -59,7 +59,7 @@ footer{max-width:960px;width:100%;margin:40px auto 0;color:var(--muted);font-siz
 </main>
 <footer>Versie <span id="version"></span></footer>
 
-<script src="version.js?v=3.9"></script>
+<script src="version.js?v=4.0"></script>
 <script>
 document.getElementById('version').textContent = SITE_VERSION;
 /*
@@ -249,6 +249,24 @@ const GAMES = [
         <g fill="#7bd88f" opacity=".45"><rect x="14.5" y="49" width="10" height="10" rx="2"/><rect x="26" y="49" width="10" height="10" rx="2"/><rect x="37.5" y="49" width="10" height="10" rx="2"/></g>
       </g>
       <g fill="#7bd88f"><rect x="126" y="30" width="10" height="10" rx="2"/><rect x="137.5" y="30" width="10" height="10" rx="2"/><rect x="149" y="30" width="10" height="10" rx="2"/></g>`
+  },
+  {
+    title: 'Bubbels',
+    href: 'games/bubbels/',
+    description: 'Schiet gekleurde bellen en maak groepjes van drie. Wat los hangt valt naar beneden. Eindeloze levels, met regenboog- en bombellen.',
+    tag: 'Arcade',
+    bestKey: 'bubbels-best',
+    bestLabel: n => n + ' punten',
+    thumb: `
+      <rect width="160" height="90" fill="#10162a"/>
+      ${[['#ff7a7a',0,0],['#ff7a7a',1,0],['#6cb6ff',2,0],['#7bd88f',3,0],['#7bd88f',4,0],['#ffe066',5,0],['#b48cff',6,0],
+         ['#6cb6ff',0,1],['#6cb6ff',1,1],['#ffe066',2,1],['#7bd88f',3,1],['#b48cff',4,1],['#b48cff',5,1],
+         ['#ffe066',1,2],['#ffe066',2,2],['#ff7a7a',3,2],['#b48cff',4,2]]
+        .map(([c, x, y]) => `<circle cx="${38 + x * 14 + (y % 2) * 7}" cy="${12 + y * 12}" r="6.5" fill="${c}"/><circle cx="${36 + x * 14 + (y % 2) * 7}" cy="${10 + y * 12}" r="2" fill="#fff" opacity=".5"/>`).join('')}
+      <path d="M80 80 L95 58" stroke="#ff7a7a" stroke-width="2" stroke-dasharray="2 4" opacity=".7"/>
+      <path d="M95 58 L103 46" stroke="#ff7a7a" stroke-width="2" stroke-dasharray="2 4" opacity=".7"/>
+      <path d="M66 86a14 14 0 0 1 28 0z" fill="#2a3358"/>
+      <circle cx="80" cy="80" r="6.5" fill="#ff7a7a"/><circle cx="78" cy="78" r="2" fill="#fff" opacity=".5"/>`
   },
 ];
 

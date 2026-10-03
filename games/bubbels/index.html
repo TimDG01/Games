@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Bubbels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;600&display=swap">
+<style>
+/* Layout: tellers bovenaan, staand speelveld eronder dat zich aan het scherm aanpast, panelen erover */
+:root{
+  --bg:#141a2e; --bg-deep:#0b0f1d; --fg:#f4f0e6; --muted:#9097b5; --accent:#ffb347; --panel:#1d2440;
+  --display:'Bungee', Impact, 'Arial Black', sans-serif;
+  --body:'Outfit', system-ui, -apple-system, sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#wrap{position:fixed;inset:0;touch-action:none}
+canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
+.top{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 12px);margin:0 auto;padding:0 12px;max-width:520px;height:44px;
+  display:grid;grid-template-columns:44px 1fr 1fr 44px;align-items:center;gap:6px;pointer-events:none}
+.stat{text-align:center;line-height:1}
+.stat b{display:block;font-family:var(--display);font-weight:400;font-size:24px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+.home{pointer-events:auto;width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
+.home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+/* de terugknop blijft boven de pop-ups, zodat je altijd naar het overzicht kunt */
+.home{position:relative;z-index:5}
+.overlay{position:absolute;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62)}
+.overlay[hidden]{display:none}
+.panel{background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:28px 24px;max-width:320px;width:100%;text-align:center;
+  display:flex;flex-direction:column;gap:14px;box-shadow:8px 8px 0 var(--bg-deep)}
+.panel h1{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.05;margin:0;text-wrap:balance}
+.panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.45}
+.ver{font-size:12px;color:var(--muted);letter-spacing:.08em}
+.big{font-family:var(--display);font-size:56px;line-height:1;color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:50%;margin-right:5px;vertical-align:-2px}
+.panel > button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
+  padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
+.panel > button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+</style>
+</head><body>
+
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div class="top" id="top">
+    <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
+    <div class="stat"><b id="score">0</b><span>Score</span></div>
+    <div class="stat"><b id="level">1</b><span>Level</span></div>
+    <button class="sndbtn" aria-label="Geluid aan of uit"></button>
+  </div>
+
+  <div class="overlay" id="start">
+    <div class="panel">
+      <h1>Bubbels</h1>
+      <p>Richt met je vinger en laat los om te schieten. Drie of meer dezelfde kleur springen weg, en wat los hangt valt naar beneden. Mis je te vaak, dan zakt het plafond.</p>
+      <div class="legend">
+        <span><i style="background:conic-gradient(#ff7a7a,#ffe066,#7bd88f,#6cb6ff,#b48cff,#ff7a7a)"></i>Regenboog: past bij elke kleur</span>
+        <span><i style="background:#2a2f45;box-shadow:inset 0 0 0 3px #ffb347"></i>Bom: blaast alles rondom weg</span>
+      </div>
+      <p id="bestline">Record 0</p>
+      <button id="go">Start</button>
+      <div class="ver">Versie <span id="ver"></span></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="over" hidden>
+    <div class="panel">
+      <h1>Game over</h1>
+      <div class="big" id="final">0</div>
+      <p id="overmsg">punten</p>
+      <button id="again">Opnieuw</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../version.js?v=4.0"></script>
+<script>
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+try{$('ver').textContent=SITE_VERSION}catch(e){}
+
+// speelveld in vaste eenheden, geschaald naar het scherm
+const R=20, COLS=10, RH=R*Math.sqrt(3), FW=COLS*2*R, FH=640;
+const SHOOT_Y=FH-44, DANGER_Y=FH-104;
+const COLORS=['#ff7a7a','#ffb347','#ffe066','#7bd88f','#6cb6ff','#b48cff'];
+let W,H,dpr,S,fx,fy;
+function resize(){
+  dpr=Math.min(window.devicePixelRatio||1,3);W=innerWidth;H=innerHeight;
+  cv.width=W*dpr;cv.height=H*dpr;
+  const top=$('top').getBoundingClientRect().bottom+10, bottom=12, avH=H-top-bottom;
+  S=Math.min((W-16)/FW,avH/FH);fx=(W-FW*S)/2;fy=top+(avH-FH*S)/2;
+}
+addEventListener('resize',resize);resize();
+
+let best=0; try{best=+localStorage.getItem('bubbels-best')||0}catch(e){}
+$('bestline').textContent='Record '+best;
+
+/* ---------- toestand ---------- */
+// rooster: rij r, kolom c; oneven rijen schuiven een halve bel op en hebben één bel minder
+let grid,ceil,state='start',score,level,cur,next,shot,aim,misses,missLimit,parts,falling,banner,shotsTaken,flash;
+const cols=r=>r%2?COLS-1:COLS;
+const key=(r,c)=>r*100+c;
+const cx=(r,c)=>R+c*2*R+(r%2?R:0);
+const cy=r=>ceil+R+r*RH;
+const rnd=Math.random;
+
+function neighbours(r,c){
+  const o=r%2, list=[[r,c-1],[r,c+1],[r-1,c-1+o],[r-1,c+o],[r+1,c-1+o],[r+1,c+o]];
+  return list.filter(([rr,cc])=>rr>=0&&cc>=0&&cc<cols(rr));
+}
+const colorsOnBoard=()=>[...new Set([...grid.values()].map(b=>b.col))];
+
+function newLevel(){
+  grid=new Map();ceil=0;
+  const rows=Math.min(5+level,10), ncol=Math.min(4+Math.floor((level-1)/2),6), palette=COLORS.slice(0,ncol);
+  // kleuren in groepjes, zodat er iets te halen valt
+  for(let r=0;r<rows;r++)for(let c=0;c<cols(r);c++){
+    let col=palette[Math.floor(rnd()*ncol)];
+    const near=neighbours(r,c).map(([rr,cc])=>grid.get(key(rr,cc))).filter(Boolean);
+    if(near.length&&rnd()<0.5)col=near[Math.floor(rnd()*near.length)].col;
+    grid.set(key(r,c),{r,c,col});
+  }
+  missLimit=Math.max(3,7-Math.floor(level/2));misses=0;banner=1.6;
+  cur=makeBall();next=makeBall();
+  $('level').textContent=level;
+}
+function makeBall(type){
+  const pal=colorsOnBoard();
+  const col=pal.length?pal[Math.floor(rnd()*pal.length)]:COLORS[0];
+  if(type)return {type,col};
+  // af en toe een bonusbel
+  if(shotsTaken>3&&rnd()<0.06)return {type:rnd()<0.6?'regenboog':'bom',col};
+  return {type:'gewoon',col};
+}
+function reset(){
+  score=0;level=1;parts=[];falling=[];shot=null;shotsTaken=0;flash=null;
+  aim={x:FW/2,y:SHOOT_Y-200,active:false};
+  $('score').textContent=0;newLevel();
+}
+function addScore(n){score+=n;$('score').textContent=score;}
+
+/* ---------- geluid ---------- */
+let ac=null;
+function beep(f,d=0.07,type='triangle',v=0.09){
+  if(window.SITE_SOUND&&!SITE_SOUND.on)return;   // geluid uitgezet
+  try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+d);
+    o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d);}catch(e){}
+}
+
+/* ---------- richten ---------- */
+// hoek beperken zodat je niet bijna horizontaal schiet
+function aimDir(){
+  let dx=aim.x-FW/2, dy=aim.y-SHOOT_Y;
+  let a=Math.atan2(dy,dx);
+  const min=-Math.PI+0.17, max=-0.17;
+  if(a>0)a=dx<0?min:max;
+  a=Math.max(min,Math.min(max,a));
+  return [Math.cos(a),Math.sin(a)];
+}
+// pad van de bel met kaatsen tegen de zijkanten, voor de stippellijn
+function tracePath(){
+  let [dx,dy]=aimDir(),x=FW/2,y=SHOOT_Y;const pts=[[x,y]];
+  for(let i=0;i<500;i++){
+    x+=dx*4;y+=dy*4;
+    if(x<R){x=R;dx=-dx;pts.push([x,y]);}
+    if(x>FW-R){x=FW-R;dx=-dx;pts.push([x,y]);}
+    if(y<ceil+R||hits(x,y)){pts.push([x,y]);break;}
+  }
+  return pts;
+}
+function hits(x,y){
+  for(const b of grid.values()){const ddx=x-cx(b.r,b.c),ddy=y-cy(b.r);if(ddx*ddx+ddy*ddy<(2*R-6)*(2*R-6))return true;}
+  return false;
+}
+
+function fire(){
+  if(state!=='play'||shot||!cur)return;
+  const [dx,dy]=aimDir(), sp=900;
+  shot={...cur,x:FW/2,y:SHOOT_Y,vx:dx*sp,vy:dy*sp};
+  cur=next;next=makeBall();shotsTaken++;
+  beep(520,0.05);
+}
+function swap(){if(state==='play'&&!shot&&next){[cur,next]=[next,cur];beep(700,0.04);}}
+
+/* ---------- landen en wegspringen ---------- */
+function snap(b){
+  // dichtstbijzijnde vrije plek in het rooster
+  let r=Math.max(0,Math.round((b.y-ceil-R)/RH));
+  let best=null,bd=1e9;
+  for(let rr=Math.max(0,r-1);rr<=r+1;rr++)for(let c=0;c<cols(rr);c++){
+    if(grid.has(key(rr,c)))continue;
+    // alleen plekken tegen het plafond of tegen een andere bel
+    if(rr>0&&!neighbours(rr,c).some(([a,d])=>grid.has(key(a,d))))continue;
+    const d=(b.x-cx(rr,c))**2+(b.y-cy(rr))**2;
+    if(d<bd){bd=d;best=[rr,c];}
+  }
+  if(!best)best=[0,Math.max(0,Math.min(COLS-1,Math.round((b.x-R)/(2*R))))];
+  const [rr,c]=best;
+  let col=b.col;
+  if(b.type==='regenboog'){
+    // neem de kleur die de grootste groep oplevert
+    let bestN=-1;
+    for(const [a,d] of neighbours(rr,c)){const n=grid.get(key(a,d));if(!n)continue;
+      grid.set(key(rr,c),{r:rr,c,col:n.col});const g=group(rr,c).length;grid.delete(key(rr,c));
+      if(g>bestN){bestN=g;col=n.col;}}
+  }
+  grid.set(key(rr,c),{r:rr,c,col});
+  let popped=0;
+  if(b.type==='bom'){
+    const x=cx(rr,c),y=cy(rr);
+    for(const n of [...grid.values()])if((cx(n.r,n.c)-x)**2+(cy(n.r)-y)**2<=(R*4.4)**2){pop(n);popped++;}
+    shake(0.25);beep(80,0.5,'sawtooth',0.1);flashText('Boem!');
+  }else{
+    const g=group(rr,c);
+    if(g.length>=3){for(const n of g)pop(n);popped=g.length;beep(600+Math.min(g.length,8)*60,0.1);}
+    else beep(300,0.04);
+  }
+  let dropped=0;
+  if(popped){
+    addScore(popped*10);
+    dropped=dropFloating();
+    if(dropped){addScore(dropped*20*(dropped>=6?2:1));beep(900,0.12,'sine');}
+    if(dropped>=6){next={type:'bom',col:next.col};flashText(dropped+' gevallen! Bom erbij');}
+    else if(popped+dropped>=10)flashText('Super!');
+  }else{
+    misses++;
+    if(misses>=missLimit){misses=0;ceil+=RH;shake(0.15);beep(120,0.25,'square',0.06);}
+  }
+  if(!grid.size){
+    addScore(200*level);level++;
+    [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.12),i*90));
+    newLevel();return;
+  }
+  // kleuren die niet meer op het bord staan uit de rij halen
+  const pal=colorsOnBoard();
+  for(const k of [cur,next])if(k&&k.type==='gewoon'&&!pal.includes(k.col))k.col=pal[Math.floor(rnd()*pal.length)];
+  if([...grid.values()].some(n=>cy(n.r)+R>DANGER_Y))end();
+}
+function group(r,c){
+  const start=grid.get(key(r,c)),seen=new Set([key(r,c)]),out=[start],todo=[[r,c]];
+  while(todo.length){const [a,d]=todo.pop();
+    for(const [e,f] of neighbours(a,d)){const k=key(e,f),n=grid.get(k);if(n&&!seen.has(k)&&n.col===start.col){seen.add(k);out.push(n);todo.push([e,f]);}}}
+  return out;
+}
+function pop(n){
+  grid.delete(key(n.r,n.c));
+  const x=cx(n.r,n.c),y=cy(n.r);
+  for(let i=0;i<6;i++)parts.push({x,y,vx:(rnd()-0.5)*220,vy:(rnd()-0.5)*220,t:0.4,col:n.col});
+}
+function dropFloating(){
+  const seen=new Set(),todo=[];
+  for(const n of grid.values())if(n.r===0){seen.add(key(n.r,n.c));todo.push([n.r,n.c]);}
+  while(todo.length){const [a,d]=todo.pop();
+    for(const [e,f] of neighbours(a,d)){const k=key(e,f);if(grid.has(k)&&!seen.has(k)){seen.add(k);todo.push([e,f]);}}}
+  let n=0;
+  for(const b of [...grid.values()])if(!seen.has(key(b.r,b.c))){
+    grid.delete(key(b.r,b.c));falling.push({x:cx(b.r,b.c),y:cy(b.r),vx:(rnd()-0.5)*60,vy:-60-rnd()*80,col:b.col});n++;
+  }
+  return n;
+}
+let shakeT=0;function shake(t){shakeT=Math.max(shakeT,t);}
+function flashText(t){flash={text:t,t:1.3};}
+
+function end(){
+  state='over';beep(110,0.4,'sawtooth',0.08);
+  const rec=score>best;
+  if(rec){best=score;try{localStorage.setItem('bubbels-best',best)}catch(e){}}
+  $('bestline').textContent='Record '+best;
+  $('final').textContent=score;
+  $('overmsg').textContent=(score===1?'punt':'punten')+' · level '+level+(rec&&score>0?' · nieuw record!':'');
+  setTimeout(()=>{$('over').hidden=false;$('again').focus();},800);
+}
+
+function update(dt){
+  if(banner>0)banner-=dt;
+  if(flash&&(flash.t-=dt)<=0)flash=null;
+  if(shot){
+    const n=Math.ceil(900*dt/4);
+    for(let i=0;i<n&&shot;i++){
+      shot.x+=shot.vx*dt/n;shot.y+=shot.vy*dt/n;
+      if(shot.x<R){shot.x=R;shot.vx=-shot.vx;}
+      if(shot.x>FW-R){shot.x=FW-R;shot.vx=-shot.vx;}
+      if(shot.y<ceil+R||hits(shot.x,shot.y)){const s=shot;shot=null;snap(s);}
+    }
+  }
+}
+
+/* ---------- besturing ---------- */
+const toField=e=>({x:(e.clientX-fx)/S,y:(e.clientY-fy)/S});
+const onNext=p=>Math.hypot(p.x-(FW/2+70),p.y-(SHOOT_Y+10))<R+10;
+$('wrap').addEventListener('pointerdown',e=>{
+  if(state!=='play'||e.target.closest('.overlay,.home,.sndbtn'))return;
+  e.preventDefault();
+  const p=toField(e);
+  if(onNext(p)){swap();return;}
+  aim.x=p.x;aim.y=p.y;aim.active=true;aim.id=e.pointerId;aim.mouse=e.pointerType==='mouse';
+});
+addEventListener('pointermove',e=>{
+  if(state!=='play')return;
+  const p=toField(e);
+  if((aim.active&&e.pointerId===aim.id)||(e.pointerType==='mouse'&&!e.target.closest('.overlay'))){aim.x=p.x;aim.y=p.y;}
+});
+addEventListener('pointerup',e=>{
+  if(!aim.active||e.pointerId!==aim.id)return;
+  aim.active=false;
+  const p=toField(e);
+  // alleen schieten als je boven het kanon loslaat
+  if(p.y<SHOOT_Y-10)fire();
+});
+addEventListener('pointercancel',()=>{aim.active=false;});
+addEventListener('keydown',e=>{
+  if(state!=='play')return;
+  if(e.code==='ArrowLeft'||e.code==='ArrowRight'){
+    const [dx,dy]=aimDir();let a=Math.atan2(dy,dx)+(e.code==='ArrowLeft'?-0.05:0.05);
+    aim.x=FW/2+Math.cos(a)*200;aim.y=SHOOT_Y+Math.sin(a)*200;e.preventDefault();
+  }
+  if(e.code==='Space'||e.code==='ArrowUp'){fire();e.preventDefault();}
+  if(e.code==='KeyX'||e.code==='ArrowDown'){swap();e.preventDefault();}
+});
+
+/* ---------- tekenen ---------- */
+function bubble(x,y,col,type,r=R,alpha=1){
+  ctx.globalAlpha=alpha;
+  if(type==='regenboog'){
+    const g=ctx.createConicGradient?ctx.createConicGradient(performance.now()/600,x,y):null;
+    if(g){COLORS.concat(COLORS[0]).forEach((c,i)=>g.addColorStop(i/6,c));ctx.fillStyle=g;}else ctx.fillStyle='#f4f0e6';
+  }else if(type==='bom')ctx.fillStyle='#2a2f45';
+  else ctx.fillStyle=col;
+  ctx.beginPath();ctx.arc(x,y,r-1.5,0,Math.PI*2);ctx.fill();
+  if(type==='bom'){
+    ctx.strokeStyle='#ffb347';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,r-4,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='#ffb347';ctx.font='600 16px Outfit, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('✹',x,y+1);
+  }else{
+    ctx.fillStyle='rgba(0,0,0,0.18)';ctx.beginPath();ctx.arc(x+r*0.12,y+r*0.15,r*0.78,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=type==='regenboog'?'rgba(255,255,255,0.0)':col;ctx.beginPath();ctx.arc(x-r*0.05,y-r*0.05,r*0.72,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.55)';ctx.beginPath();ctx.ellipse(x-r*0.32,y-r*0.36,r*0.24,r*0.15,-0.6,0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+
+function draw(t,dt){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#141a2e';ctx.fillRect(0,0,W,H);
+  let ox=0,oy=0;if(shakeT>0){shakeT-=dt;ox=(rnd()-0.5)*10*shakeT;oy=(rnd()-0.5)*10*shakeT;}
+  ctx.setTransform(dpr*S,0,0,dpr*S,dpr*(fx+ox),dpr*(fy+oy));
+  ctx.fillStyle='#10162a';ctx.fillRect(0,0,FW,FH);
+  ctx.strokeStyle='#2f3860';ctx.lineWidth=2/S;ctx.strokeRect(0,0,FW,FH);
+  if(!grid)return;
+
+  // plafond dat zakt
+  if(ceil>0){ctx.fillStyle='#232b4c';ctx.fillRect(0,0,FW,ceil);ctx.fillStyle='#2f3860';for(let x=0;x<FW;x+=20)ctx.fillRect(x,ceil-4,10,4);}
+  // gevarenlijn
+  ctx.strokeStyle='rgba(255,122,122,0.45)';ctx.setLineDash([8,8]);ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(0,DANGER_Y);ctx.lineTo(FW,DANGER_Y);ctx.stroke();ctx.setLineDash([]);
+
+  for(const b of grid.values())bubble(cx(b.r,b.c),cy(b.r),b.col);
+
+  // stippellijn
+  if(state==='play'&&!shot&&cur){
+    const pts=tracePath();ctx.fillStyle=cur.type==='gewoon'?cur.col:'#f4f0e6';
+    let dist=0;
+    for(let i=1;i<pts.length;i++){
+      const [x0,y0]=pts[i-1],[x1,y1]=pts[i],len=Math.hypot(x1-x0,y1-y0);
+      for(let s=(18-dist%18);s<len;s+=18){const k=s/len;ctx.globalAlpha=0.6;ctx.beginPath();ctx.arc(x0+(x1-x0)*k,y0+(y1-y0)*k,2.5,0,Math.PI*2);ctx.fill();}
+      dist+=len;
+    }
+    ctx.globalAlpha=1;
+  }
+  // kanon
+  const [dx,dy]=aimDir();
+  ctx.strokeStyle='#5b6aa0';ctx.lineWidth=10;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(FW/2,SHOOT_Y);ctx.lineTo(FW/2+dx*34,SHOOT_Y+dy*34);ctx.stroke();ctx.lineCap='butt';
+  ctx.fillStyle='#2a3358';ctx.beginPath();ctx.arc(FW/2,SHOOT_Y+6,26,Math.PI,0);ctx.fill();
+  if(cur&&!shot)bubble(FW/2,SHOOT_Y,cur.col,cur.type);
+  if(next){bubble(FW/2+70,SHOOT_Y+10,next.col,next.type,R*0.75);
+    ctx.fillStyle='#9097b5';ctx.font='400 11px Outfit, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('volgende',FW/2+70,SHOOT_Y+34);}
+  // missers tot het plafond zakt
+  for(let i=0;i<missLimit;i++){
+    ctx.fillStyle=i<missLimit-misses?'#7bd88f':'#2f3860';
+    ctx.beginPath();ctx.arc(FW/2-110+i*12,SHOOT_Y+14,4,0,Math.PI*2);ctx.fill();
+  }
+  ctx.fillStyle='#9097b5';ctx.font='400 11px Outfit, system-ui, sans-serif';ctx.textAlign='left';
+  ctx.fillText('plafond',FW/2-114,SHOOT_Y+32);
+
+  if(shot)bubble(shot.x,shot.y,shot.col,shot.type);
+  for(const f of falling){f.vy+=1400*dt;f.x+=f.vx*dt;f.y+=f.vy*dt;bubble(f.x,f.y,f.col,'gewoon',R,0.85);}
+  falling=falling.filter(f=>f.y<FH+R);
+  for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.t-=dt;ctx.globalAlpha=Math.max(0,p.t/0.4);ctx.fillStyle=p.col;ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();}
+  ctx.globalAlpha=1;parts=parts.filter(p=>p.t>0);
+
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  if(banner>0&&state==='play'){
+    ctx.globalAlpha=Math.min(1,banner*2);ctx.fillStyle='#f4f0e6';ctx.font='400 40px Bungee, Impact, sans-serif';
+    ctx.fillText('Level '+level,FW/2,FH*0.55);ctx.globalAlpha=1;
+  }
+  if(flash){
+    ctx.globalAlpha=Math.min(1,flash.t*2);ctx.fillStyle='#ffb347';ctx.font='400 22px Bungee, Impact, sans-serif';
+    ctx.fillText(flash.text,FW/2,DANGER_Y-30-(1.3-flash.t)*20);ctx.globalAlpha=1;
+  }
+}
+
+let last=performance.now();
+function loop(t){
+  const dt=Math.min((t-last)/1000,0.033);last=t;
+  if(state==='play')update(dt);
+  draw(t,dt);
+  requestAnimationFrame(loop);
+}
+
+function start(){$('start').hidden=true;$('over').hidden=true;reset();state='play';beep(520,0.08);}
+$('go').addEventListener('click',start);
+$('again').addEventListener('click',start);
+reset();state='start';requestAnimationFrame(loop);
+</script>
+
+</body></html>
