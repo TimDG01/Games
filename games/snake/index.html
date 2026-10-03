@@ -33,6 +33,12 @@ canvas{display:block;width:100%;height:100%}
 button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
   padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
 button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
+.levels{display:flex;gap:6px}
+.levels button{flex:1;font-size:14px;padding:10px 4px;color:var(--fg);background:transparent;border:2px solid #2f3860;box-shadow:none}
+.levels button[aria-pressed="true"]{color:var(--bg-deep);background:var(--accent);border-color:var(--accent)}
+.levels button:active{transform:none}
+button.link{font-family:var(--body);font-size:14px;color:var(--muted);background:none;box-shadow:none;padding:4px;text-decoration:underline}
+button.link:active{transform:none}
 button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
 .home{position:absolute;z-index:2;top:calc(env(safe-area-inset-top,0px) + 12px);left:calc(env(safe-area-inset-left,0px) + 12px);
   width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
@@ -53,6 +59,11 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
     <div class="panel">
       <h1>Snake</h1>
       <p>Veeg over het scherm of gebruik de pijltjestoetsen. Eet het oranje fruit om te groeien. Raak de muur of je eigen staart niet.</p>
+      <div class="levels" role="group" aria-label="Snelheid">
+        <button data-level="traag">Traag</button>
+        <button data-level="normaal">Normaal</button>
+        <button data-level="snel">Snel</button>
+      </div>
       <button id="go">Start</button>
       <div class="ver">Versie <span id="ver"></span></div>
     </div>
@@ -64,6 +75,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
       <div class="big" id="final">0</div>
       <p id="overmsg">punten</p>
       <button id="again">Opnieuw</button>
+      <button class="link" id="change">Andere snelheid</button>
     </div>
   </div>
 </div>
@@ -85,11 +97,25 @@ function resize(){
 }
 addEventListener('resize',resize);resize();
 
-let best=0; try{best=+localStorage.getItem('snake-best')||0}catch(e){}
-$('best').textContent='Record '+best;
+/* snelheid: tijd per stap aan het begin, kortste tijd, en hoeveel sneller per fruit (ms) */
+const LEVELS={
+  traag:  {start:220,min:110,per:3, key:'snake-best-traag', name:'Traag'},
+  normaal:{start:150,min:65, per:4, key:'snake-best',       name:'Normaal'},
+  snel:   {start:100,min:45, per:3, key:'snake-best-snel',  name:'Snel'},
+};
+let level='normaal'; try{const l=localStorage.getItem('snake-level');if(LEVELS[l])level=l}catch(e){}
+let best=0;
+function setLevel(l){
+  level=l;try{localStorage.setItem('snake-level',l)}catch(e){}
+  best=0;try{best=+localStorage.getItem(LEVELS[l].key)||0}catch(e){}
+  $('best').textContent='Record '+best+' · '+LEVELS[l].name;
+  document.querySelectorAll('[data-level]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.level===l));
+}
+document.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',()=>setLevel(b.dataset.level)));
+setLevel(level);
 
 let snake,dir,queue,food,score,state='start',acc=0,eatPulse=0,dead=null;
-const stepMs=()=>Math.max(65,150-score*4);
+const stepMs=()=>{const L=LEVELS[level];return Math.max(L.min,L.start-score*L.per)};
 
 function reset(){
   const m=Math.floor(N/2);
@@ -140,8 +166,8 @@ function step(){
 function end(){
   state='over';beep(110,0.4,'sawtooth',0.08);
   const rec=score>best;
-  if(rec){best=score;try{localStorage.setItem('snake-best',best)}catch(e){}}
-  $('best').textContent='Record '+best;
+  if(rec){best=score;try{localStorage.setItem(LEVELS[level].key,best)}catch(e){}}
+  $('best').textContent='Record '+best+' · '+LEVELS[level].name;
   $('final').textContent=score;
   $('overmsg').textContent=(score===1?'punt':'punten')+(rec&&score>0?' · nieuw record!':'');
   setTimeout(()=>{$('over').hidden=false;$('again').focus();},700);
@@ -150,6 +176,7 @@ function end(){
 function start(){$('start').hidden=true;$('over').hidden=true;reset();state='play';beep(520,0.08);}
 $('go').addEventListener('click',start);
 $('again').addEventListener('click',start);
+$('change').addEventListener('click',()=>{$('over').hidden=true;$('start').hidden=false;$('go').focus();});
 
 // vegen: zodra de vinger ver genoeg beweegt telt het als bocht, daarna opnieuw meten
 let sx=null,sy=null;
