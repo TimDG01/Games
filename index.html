@@ -59,7 +59,7 @@ footer{max-width:960px;width:100%;margin:40px auto 0;color:var(--muted);font-siz
 </main>
 <footer>Versie <span id="version"></span></footer>
 
-<script src="version.js?v=2.5"></script>
+<script src="version.js?v=2.6"></script>
 <script>
 document.getElementById('version').textContent = SITE_VERSION;
 /*
@@ -184,6 +184,29 @@ const GAMES = [
           <text x="39" y="20">🦊</text><text x="95" y="20">🐼</text><text x="11" y="56">🐼</text>
         </g>
       </g>`
+  },
+  {
+    title: 'Alien Invasie',
+    href: 'games/alien-invasie/',
+    description: 'De aliens marcheren naar beneden. Schiet ze neer vanuit je schip voor ze landen, en verstop je achter de schilden.',
+    tag: 'Arcade',
+    bestKey: 'invasie-best',
+    bestLabel: n => n + ' punten',
+    thumb: `
+      <rect width="160" height="90" fill="#0b0f1d"/>
+      <g fill="#b48cff" transform="translate(30 14) scale(1.6)">
+        <path d="M2 0h1v1H2zM8 0h1v1H8zM3 1h1v1H3zM7 1h1v1H7zM2 2h7v1H2zM1 3h2v1H1zM4 3h3v1H4zM8 3h2v1H8zM0 4h11v1H0zM0 5h1v2H0zM2 5h7v1H2zM10 5h1v2H10zM2 6h1v1H2zM8 6h1v1H8zM3 7h2v1H3zM6 7h2v1H6z"/>
+      </g>
+      <g fill="#b48cff" transform="translate(62 14) scale(1.6)">
+        <path d="M2 0h1v1H2zM8 0h1v1H8zM3 1h1v1H3zM7 1h1v1H7zM2 2h7v1H2zM1 3h2v1H1zM4 3h3v1H4zM8 3h2v1H8zM0 4h11v1H0zM0 5h1v2H0zM2 5h7v1H2zM10 5h1v2H10zM2 6h1v1H2zM8 6h1v1H8zM3 7h2v1H3zM6 7h2v1H6z"/>
+      </g>
+      <g fill="#b48cff" transform="translate(94 14) scale(1.6)">
+        <path d="M2 0h1v1H2zM8 0h1v1H8zM3 1h1v1H3zM7 1h1v1H7zM2 2h7v1H2zM1 3h2v1H1zM4 3h3v1H4zM8 3h2v1H8zM0 4h11v1H0zM0 5h1v2H0zM2 5h7v1H2zM10 5h1v2H10zM2 6h1v1H2zM8 6h1v1H8zM3 7h2v1H3zM6 7h2v1H6z"/>
+      </g>
+      <rect x="99" y="36" width="2" height="5" fill="#ffb347"/><rect x="100" y="41" width="2" height="5" fill="#ffb347"/>
+      <rect x="72" y="44" width="2" height="7" fill="#f4f0e6"/>
+      <path d="M30 66h24v8H30zM106 66h24v8h-24z" fill="#7bd88f"/>
+      <g fill="#7bd88f" transform="translate(62 74)"><rect x="9" y="0" width="2" height="2"/><rect x="7" y="2" width="6" height="2"/><rect x="0" y="4" width="20" height="6"/></g>`
   },
 ];
 

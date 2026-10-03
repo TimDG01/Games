@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Alien Invasie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;600&display=swap">
+<style>
+/* Layout: tellers bovenaan, staand speelveld eronder dat zich aan het scherm aanpast, panelen erover */
+:root{
+  --bg:#141a2e; --bg-deep:#0b0f1d; --fg:#f4f0e6; --muted:#9097b5; --accent:#ffb347; --panel:#1d2440;
+  --display:'Bungee', Impact, 'Arial Black', sans-serif;
+  --body:'Outfit', system-ui, -apple-system, sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#wrap{position:fixed;inset:0;touch-action:none}
+canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
+.top{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 12px);margin:0 auto;padding:0 12px;max-width:520px;height:44px;
+  display:grid;grid-template-columns:44px 1fr 1fr 1fr 44px;align-items:center;gap:6px;pointer-events:none}
+.stat{text-align:center;line-height:1}
+.stat b{display:block;font-family:var(--display);font-weight:400;font-size:24px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+#lives{color:#7bd88f;letter-spacing:.05em}
+.home{pointer-events:auto;width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
+.home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.overlay{position:absolute;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62)}
+.overlay[hidden]{display:none}
+.panel{background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:28px 24px;max-width:320px;width:100%;text-align:center;
+  display:flex;flex-direction:column;gap:14px;box-shadow:8px 8px 0 var(--bg-deep)}
+.panel h1{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.05;margin:0;text-wrap:balance}
+.panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.45}
+.ver{font-size:12px;color:var(--muted);letter-spacing:.08em}
+.big{font-family:var(--display);font-size:56px;line-height:1;color:var(--accent)}
+.points{display:grid;grid-template-columns:auto auto;justify-content:center;gap:6px 12px;align-items:center;font-size:14px;color:var(--muted)}
+.points canvas{position:static;width:auto;height:auto;justify-self:center}
+.points span{text-align:left}
+button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
+  padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
+button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+</style>
+</head><body>
+
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div class="top" id="top">
+    <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
+    <div class="stat"><b id="score">0</b><span>Score</span></div>
+    <div class="stat"><b id="wave">1</b><span>Golf</span></div>
+    <div class="stat"><b id="lives">&#9650;&#9650;&#9650;</b><span>Levens</span></div>
+    <div></div>
+  </div>
+
+  <div class="overlay" id="start">
+    <div class="panel">
+      <h1>Alien Invasie</h1>
+      <p>Houd je vinger op het scherm: je schip volgt je vinger en schiet vanzelf. Op de computer: pijltjes en spatie. Schiet alle aliens neer voor ze beneden zijn.</p>
+      <div class="points" id="points"></div>
+      <p id="bestline">Record 0</p>
+      <button id="go">Start</button>
+      <div class="ver">Versie <span id="ver"></span></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="over" hidden>
+    <div class="panel">
+      <h1 id="overtitle">Game over</h1>
+      <div class="big" id="final">0</div>
+      <p id="overmsg">punten</p>
+      <button id="again">Opnieuw</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../version.js?v=2.6"></script>
+<script>
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+try{$('ver').textContent=SITE_VERSION}catch(e){}
+
+// speelveld in vaste eenheden, geschaald naar het scherm
+const FW=400, FH=600, PX=2;
+let W,H,dpr,S,fx,fy;
+function resize(){
+  dpr=Math.min(window.devicePixelRatio||1,3);W=innerWidth;H=innerHeight;
+  cv.width=W*dpr;cv.height=H*dpr;
+  const top=$('top').getBoundingClientRect().bottom+10, bottom=12, avH=H-top-bottom;
+  S=Math.min((W-16)/FW,avH/FH);fx=(W-FW*S)/2;fy=top+(avH-FH*S)/2;
+}
+addEventListener('resize',resize);resize();
+
+/* --- pixel-sprites: twee beeldjes per alien om te laten bewegen --- */
+const SPR={
+  inktvis:[["...##...","..####..",".######.","##.##.##","########","..#..#..",".#.##.#.","#.#..#.#"],
+           ["...##...","..####..",".######.","##.##.##","########",".#.##.#.","#......#",".#....#."]],
+  krab:[["..#.....#..","...#...#...","..#######..",".##.###.##.","###########","#.#######.#","#.#.....#.#","...##.##..."],
+        ["..#.....#..","#..#...#..#","#.#######.#","###.###.###","###########",".#########.","..#.....#..",".#.......#."]],
+  octopus:[["....####....",".##########.","############","###..##..###","############","...##..##...","..##.##.##..","##........##"],
+           ["....####....",".##########.","############","###..##..###","############","..###..###..",".##..##..##.","..##....##.."]],
+  schip:[["......#......",".....###.....",".....###.....",".###########.","#############","#############","#############","#############"]],
+  ufo:[[".....######.....","...##########...","..############..",".##.##.##.##.##.","################","..###..##..###..","...#........#..."]],
+};
+const path=rows=>{const p=new Path2D();rows.forEach((r,y)=>{for(let x=0;x<r.length;x++)if(r[x]==='#')p.rect(x*PX,y*PX,PX,PX);});return p;};
+const SP={};for(const k in SPR)SP[k]={frames:SPR[k].map(path),w:SPR[k][0][0].length*PX,h:SPR[k][0].length*PX};
+
+// per rij: soort, kleur en punten
+const ROWS=[['inktvis','#ff7a7a',30],['krab','#b48cff',20],['krab','#b48cff',20],['octopus','#6cb6ff',10],['octopus','#6cb6ff',10]];
+const COLS=8, CW=36, CH=30;
+
+// uitleg met de punten per soort op het startscherm
+(function(){
+  const el=$('points');
+  for(const [k,col,txt] of [['inktvis','#ff7a7a','30'],['krab','#b48cff','20'],['octopus','#6cb6ff','10'],['ufo','#ff7a7a','?']]){
+    const c=document.createElement('canvas'),s=SP[k],z=1.5;c.width=s.w*z*2;c.height=s.h*z*2;c.style.width=s.w*z+'px';c.style.height=s.h*z+'px';
+    const x=c.getContext('2d');x.scale(z*2,z*2);x.fillStyle=col;x.fill(s.frames[0]);
+    const t=document.createElement('span');t.textContent='= '+txt+' punten';
+    el.append(c,t);
+  }
+})();
+
+let best=0; try{best=+localStorage.getItem('invasie-best')||0}catch(e){}
+$('bestline').textContent='Record '+best;
+
+let state='start',score,lives,wave,aliens,dir,stepT,frame,shots,bombs,ufo,ufoT,player,shields,parts,banner,fireCd,deadT,nextLife;
+let stepN=0,holding=false,keyDir=0,keyFire=false;
+const rnd=Math.random, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+/* geluid: kleine piep, start pas na de eerste tik */
+let ac=null;
+function beep(f,d=0.07,type='square',v=0.05){
+  try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+d);
+    o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d);}catch(e){}
+}
+
+/* --- schilden: blokjes van 2×2 die stukje bij beetje kapotgaan --- */
+const SHW=22, SHH=16, SHY=FH-112;
+function makeShields(){
+  const out=[], gap=(FW-4*SHW*PX)/5;
+  for(let i=0;i<4;i++){
+    const cells=new Uint8Array(SHW*SHH);
+    for(let y=0;y<SHH;y++)for(let x=0;x<SHW;x++){
+      const corner=y<4&&(x<4-y||x>SHW-5+y);
+      const arch=y>=SHH-6&&x>=6&&x<SHW-6&&!(y===SHH-6&&(x===6||x===SHW-7));
+      cells[y*SHW+x]=corner||arch?0:1;
+    }
+    out.push({x:Math.round(gap+i*(SHW*PX+gap)),y:SHY,cells});
+  }
+  return out;
+}
+// raakt een rechthoek een schild? Dan een stukje wegschieten
+function hitShield(x,y,w,h,blast){
+  for(const s of shields){
+    if(x+w<s.x||x>s.x+SHW*PX||y+h<s.y||y>s.y+SHH*PX)continue;
+    const x0=clamp(Math.floor((x-s.x)/PX),0,SHW-1),x1=clamp(Math.floor((x+w-s.x)/PX),0,SHW-1);
+    const y0=clamp(Math.floor((y-s.y)/PX),0,SHH-1),y1=clamp(Math.floor((y+h-s.y)/PX),0,SHH-1);
+    let hit=-1;
+    for(let cy=y0;cy<=y1&&hit<0;cy++)for(let cx=x0;cx<=x1;cx++)if(s.cells[cy*SHW+cx]){hit=cy*SHW+cx;break;}
+    if(hit<0)continue;
+    if(!blast){for(let cy=y0;cy<=y1;cy++)for(let cx=x0;cx<=x1;cx++)s.cells[cy*SHW+cx]=0;return true;}
+    const hx=hit%SHW, hy=(hit-hx)/SHW;
+    for(let dy=-3;dy<=3;dy++)for(let dx=-2;dx<=2;dx++){
+      const cx=hx+dx,cy=hy+dy;
+      if(cx>=0&&cy>=0&&cx<SHW&&cy<SHH&&rnd()<1-(Math.abs(dx)+Math.abs(dy))/5)s.cells[cy*SHW+cx]=0;
+    }
+    return true;
+  }
+  return false;
+}
+
+function newWave(){
+  aliens=[];
+  const startY=78+Math.min(wave-1,6)*12, startX=(FW-COLS*CW)/2;
+  ROWS.forEach(([kind,col,pts],r)=>{for(let c=0;c<COLS;c++)
+    aliens.push({kind,col,pts,c,x:startX+c*CW+(CW-SP[kind].w)/2,y:startY+r*CH,w:SP[kind].w,h:SP[kind].h,alive:true});});
+  dir=1;stepT=0;frame=0;shots=[];bombs=[];ufo=null;ufoT=14+rnd()*10;shields=makeShields();banner=1.6;
+  $('wave').textContent=wave;
+}
+function reset(){
+  score=0;lives=3;wave=1;parts=[];fireCd=0;deadT=0;nextLife=2000;
+  player={x:FW/2,y:FH-40,w:SP.schip.w,h:SP.schip.h};
+  $('score').textContent=0;showLives();newWave();
+}
+function showLives(){$('lives').textContent=lives>0?'▲'.repeat(lives):'–';}
+function addScore(n){
+  score+=n;$('score').textContent=score;
+  if(score>=nextLife){nextLife+=2000;if(lives<5){lives++;showLives();beep(1320,0.15,'triangle',0.08);}}
+}
+function boom(x,y,col,n=12){for(let i=0;i<n;i++)parts.push({x,y,vx:(rnd()-0.5)*180,vy:(rnd()-0.5)*180,t:0.5,col});}
+
+const BASS=[98,92,87,82];
+function update(dt){
+  if(banner>0)banner-=dt;
+  const live=aliens.filter(a=>a.alive);
+
+  // speler
+  if(deadT>0){deadT-=dt;}
+  else{
+    if(keyDir)player.x+=keyDir*240*dt;
+    player.x=clamp(player.x,player.w/2+4,FW-player.w/2-4);
+    fireCd-=dt;
+    if((holding||keyFire)&&fireCd<=0&&shots.length<2){
+      shots.push({x:player.x,y:player.y-4});fireCd=0.32;beep(880,0.05,'square',0.03);
+    }
+  }
+
+  // aliens marcheren: hoe minder er over zijn, hoe sneller
+  const interval=(0.04+0.5*live.length/aliens.length)/(1+(wave-1)*0.12);
+  stepT+=dt;
+  if(stepT>=interval&&live.length){
+    stepT=0;frame^=1;stepN++;beep(BASS[stepN%4],0.06,'square',0.04);
+    const minX=Math.min(...live.map(a=>a.x)), maxX=Math.max(...live.map(a=>a.x+a.w));
+    if((dir>0&&maxX+6>FW-6)||(dir<0&&minX-6<6)){dir=-dir;for(const a of live)a.y+=12;}
+    else for(const a of live)a.x+=6*dir;
+    for(const a of live)hitShield(a.x,a.y,a.w,a.h,false);
+    if(live.some(a=>a.y+a.h>=player.y))return end(false);
+  }
+
+  // aliens schieten terug, altijd de onderste van een kolom
+  const maxBombs=Math.min(2+Math.floor(wave/2),6);
+  if(live.length&&bombs.length<maxBombs&&rnd()<dt*(0.9+wave*0.18)){
+    const colsAlive=[...new Set(live.map(a=>a.c))], c=colsAlive[Math.floor(rnd()*colsAlive.length)];
+    const shooter=live.filter(a=>a.c===c).reduce((p,a)=>a.y>p.y?a:p);
+    bombs.push({x:shooter.x+shooter.w/2,y:shooter.y+shooter.h,t:0});
+  }
+
+  // vliegende schotel
+  if(!ufo){ufoT-=dt;if(ufoT<=0){const left=rnd()<0.5;ufo={x:left?-SP.ufo.w:FW,y:40,v:left?90:-90};}}
+  else{ufo.x+=ufo.v*dt;if(ufo.x<-SP.ufo.w-4||ufo.x>FW+4){ufo=null;ufoT=16+rnd()*10;}}
+
+  // eigen schoten
+  for(const s of shots){
+    s.y-=560*dt;
+    if(s.y<0){s.done=true;continue;}
+    if(hitShield(s.x-1,s.y,2,8,true)){s.done=true;continue;}
+    for(const a of live)if(a.alive&&s.x>=a.x&&s.x<=a.x+a.w&&s.y<=a.y+a.h&&s.y+8>=a.y){
+      a.alive=false;s.done=true;addScore(a.pts);boom(a.x+a.w/2,a.y+a.h/2,a.col);beep(220,0.12,'sawtooth',0.05);break;
+    }
+    if(!s.done&&ufo&&s.x>=ufo.x&&s.x<=ufo.x+SP.ufo.w&&s.y<=ufo.y+SP.ufo.h&&s.y>=ufo.y){
+      const pts=[50,100,150,300][Math.floor(rnd()*4)];addScore(pts);
+      parts.push({x:ufo.x+SP.ufo.w/2,y:ufo.y+6,vx:0,vy:-10,t:1.2,text:pts});
+      boom(ufo.x+SP.ufo.w/2,ufo.y+6,'#ff7a7a',20);beep(660,0.2,'triangle',0.08);
+      ufo=null;ufoT=16+rnd()*10;s.done=true;
+    }
+    // schot tegen bom: allebei weg
+    for(const b of bombs)if(!s.done&&Math.abs(b.x-s.x)<4&&b.y+10>=s.y&&b.y<=s.y+8){b.done=true;s.done=true;}
+  }
+  shots=shots.filter(s=>!s.done);
+
+  // bommen van de aliens
+  for(const b of bombs){
+    b.y+=(170+wave*8)*dt;b.t+=dt;
+    if(b.y>FH){b.done=true;continue;}
+    if(hitShield(b.x-1,b.y,3,10,true)){b.done=true;continue;}
+    if(deadT<=0&&b.y+10>=player.y+2&&b.y<=player.y+player.h&&Math.abs(b.x-player.x)<=player.w/2){
+      b.done=true;playerHit();
+    }
+  }
+  bombs=bombs.filter(b=>!b.done);
+
+  if(!live.length&&state==='play'){
+    addScore(100*wave);wave++;
+    [523,659,784].forEach((f,i)=>setTimeout(()=>beep(f,0.1,'triangle',0.08),i*90));
+    newWave();
+  }
+}
+
+function playerHit(){
+  lives--;showLives();boom(player.x,player.y+6,'#7bd88f',24);beep(110,0.4,'sawtooth',0.08);
+  bombs=[];deadT=1.2;
+  if(lives<=0)end(false);
+}
+
+function end(){
+  state='over';
+  const rec=score>best;
+  if(rec){best=score;try{localStorage.setItem('invasie-best',best)}catch(e){}}
+  $('bestline').textContent='Record '+best;
+  $('final').textContent=score;
+  $('overmsg').textContent=(score===1?'punt':'punten')+' · golf '+wave+(rec&&score>0?' · nieuw record!':'');
+  setTimeout(()=>{$('over').hidden=false;$('again').focus();},900);
+}
+
+function start(){$('start').hidden=true;$('over').hidden=true;reset();state='play';beep(520,0.08,'triangle',0.08);}
+$('go').addEventListener('click',start);
+$('again').addEventListener('click',start);
+
+// besturing: vinger of muis volgen, zolang je drukt schiet het schip vanzelf
+function aim(e){if(player)player.x=(e.clientX-fx)/S;}
+$('wrap').addEventListener('pointerdown',e=>{
+  if(state!=='play'||e.target.closest('.overlay,.home'))return;
+  e.preventDefault();holding=true;aim(e);
+});
+$('wrap').addEventListener('pointermove',e=>{
+  if(state!=='play'||e.target.closest('.overlay'))return;
+  if(e.pointerType==='mouse'||holding)aim(e);
+});
+addEventListener('pointerup',()=>{holding=false});
+addEventListener('pointercancel',()=>{holding=false});
+addEventListener('keydown',e=>{
+  if(state!=='play')return;
+  if(e.code==='ArrowLeft'||e.code==='KeyA'){keyDir=-1;e.preventDefault();}
+  if(e.code==='ArrowRight'||e.code==='KeyD'){keyDir=1;e.preventDefault();}
+  if(e.code==='Space'||e.code==='ArrowUp'){keyFire=true;e.preventDefault();}
+});
+addEventListener('keyup',e=>{
+  if((e.code==='ArrowLeft'||e.code==='KeyA')&&keyDir<0)keyDir=0;
+  if((e.code==='ArrowRight'||e.code==='KeyD')&&keyDir>0)keyDir=0;
+  if(e.code==='Space'||e.code==='ArrowUp')keyFire=false;
+});
+
+/* --- tekenen --- */
+function sprite(k,f,x,y,col){ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.fillStyle=col;ctx.fill(SP[k].frames[f%SP[k].frames.length]);ctx.restore();}
+
+function draw(t){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#141a2e';ctx.fillRect(0,0,W,H);
+  ctx.setTransform(dpr*S,0,0,dpr*S,dpr*fx,dpr*fy);
+  ctx.fillStyle='#0b0f1d';ctx.fillRect(0,0,FW,FH);
+  ctx.strokeStyle='#2f3860';ctx.lineWidth=2/S;ctx.strokeRect(0,0,FW,FH);
+  // sterretjes
+  ctx.fillStyle='rgba(244,240,230,0.25)';
+  for(let i=0;i<40;i++){const x=(i*97)%FW,y=(i*157+(t/60)*(1+i%3))%FH;ctx.fillRect(x,y,1.5,1.5);}
+  if(!player)return;
+
+  for(const a of aliens)if(a.alive)sprite(a.kind,frame,a.x,a.y,a.col);
+  if(ufo)sprite('ufo',0,ufo.x,ufo.y,'#ff7a7a');
+  ctx.fillStyle='#7bd88f';
+  for(const s of shields)for(let i=0;i<s.cells.length;i++)if(s.cells[i])ctx.fillRect(s.x+(i%SHW)*PX,s.y+Math.floor(i/SHW)*PX,PX,PX);
+  if(deadT<=0||Math.floor(deadT*10)%2)sprite('schip',0,player.x-player.w/2,player.y,'#7bd88f');
+  ctx.fillRect(0,FH-14,FW,2);
+  ctx.fillStyle='#f4f0e6';
+  for(const s of shots)ctx.fillRect(s.x-1,s.y,2,8);
+  ctx.fillStyle='#ffb347';
+  for(const b of bombs){const z=Math.floor(b.t*12)%2?1:-1;ctx.fillRect(b.x-1,b.y,2,3);ctx.fillRect(b.x-1+z,b.y+3,2,3);ctx.fillRect(b.x-1,b.y+6,2,3);}
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const p of parts){
+    ctx.globalAlpha=Math.max(0,Math.min(1,p.t*2));
+    if(p.text){ctx.fillStyle='#ff7a7a';ctx.font='400 14px Bungee, Impact, sans-serif';ctx.fillText(p.text,p.x,p.y);}
+    else{ctx.fillStyle=p.col;ctx.fillRect(p.x-1.5,p.y-1.5,3,3);}
+  }
+  ctx.globalAlpha=1;
+  if(banner>0&&state==='play'){
+    ctx.globalAlpha=Math.min(1,banner*2);ctx.fillStyle='#f4f0e6';ctx.font='400 36px Bungee, Impact, sans-serif';
+    ctx.fillText('Golf '+wave,FW/2,FH*0.5);ctx.globalAlpha=1;
+  }
+}
+
+let last=performance.now();
+function loop(t){
+  const dt=Math.min((t-last)/1000,0.033);last=t;
+  if(state==='play')update(dt);
+  for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.t-=dt;}
+  parts=(parts||[]).filter(p=>p.t>0);
+  draw(t);
+  requestAnimationFrame(loop);
+}
+reset();state='start';requestAnimationFrame(loop);
+</script>
+
+</body></html>
