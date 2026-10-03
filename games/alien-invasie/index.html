@@ -66,6 +66,9 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
         <span><i style="background:#ffe066">&#187;</i>Snelvuur</span>
         <span><i style="background:#4fd1c5">&#9711;</i>Schild</span>
         <span><i style="background:#7bd88f">&#9638;</i>Herstel</span>
+        <span><i style="background:#b48cff">&#8607;</i>Doorboor</span>
+        <span><i style="background:#ffb347">&#10040;</i>Bom</span>
+        <span><i style="background:#a8e6ff">&#10052;</i>Bevriezen</span>
         <span><i style="background:#ff7a7a">&#9829;</i>Leven</span>
       </div>
       <p id="bestline">Record 0</p>
@@ -84,7 +87,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=2.7"></script>
+<script src="../../version.js?v=2.8"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -116,7 +119,7 @@ const path=rows=>{const p=new Path2D();rows.forEach((r,y)=>{for(let x=0;x<r.leng
 const SP={};for(const k in SPR)SP[k]={frames:SPR[k].map(path),w:SPR[k][0][0].length*PX,h:SPR[k][0].length*PX};
 
 // per rij: soort, kleur en punten
-const ROWS=[['inktvis','#ff7a7a',30],['krab','#b48cff',20],['krab','#b48cff',20],['octopus','#6cb6ff',10],['octopus','#6cb6ff',10]];
+const ROWS=[['inktvis','#ff7a7a',30],['krab','#b48cff',20],['krab','#b48cff',20],['octopus','#6cb6ff',10],['octopus','#6cb6ff',10],['octopus','#6cb6ff',10]];
 const COLS=8, CW=36, CH=30;
 
 // uitleg met de punten per soort op het startscherm
@@ -133,7 +136,7 @@ const COLS=8, CW=36, CH=30;
 let best=0; try{best=+localStorage.getItem('invasie-best')||0}catch(e){}
 $('bestline').textContent='Record '+best;
 
-let drops=[],spreadT=0,rapidT=0,bubble=false,flash=null,state='start',score,lives,wave,aliens,dir,stepT,frame,shots,bombs,ufo,ufoT,player,shields,parts,banner,fireCd,deadT,nextLife;
+let drops=[],pierceT=0,freezeT=0,spreadT=0,rapidT=0,bubble=false,flash=null,state='start',score,lives,wave,aliens,dir,stepT,frame,shots,bombs,ufo,ufoT,player,shields,parts,banner,fireCd,deadT,nextLife;
 let stepN=0,holding=false,keyDir=0,keyFire=false;
 const rnd=Math.random, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
@@ -181,16 +184,42 @@ function hitShield(x,y,w,h,blast){
   return false;
 }
 
+/* formaties: welke plekken in het rooster bezet zijn, altijd links-rechts gespiegeld.
+   d = afstand tot het midden (0 = middelste twee kolommen, 3 = buitenkant) */
+const FORMS={
+  Klassiek:  (r,d,R)=>true,
+  Piramide:  (r,d,R)=>d<=r*3/(R-1)+0.01,
+  'V-vorm':  (r,d,R)=>d<=(R-1-r)*3/(R-1)+0.01,
+  Ruit:      (r,d,R)=>Math.abs(r-(R-1)/2)*1.2+d<=3.2,
+  Dambord:   (r,d,R)=>(r+d)%2===0,
+  Kader:     (r,d,R)=>r===0||r===R-1||d===3||d===0,
+  Kolommen:  (r,d,R)=>d%2===0||r===0,
+  Vleugels:  (r,d,R)=>d>=2||r===0,
+  Pijl:      (r,d,R)=>d<=1||r===R-1-d||r===R-d,
+};
+let formName='Klassiek';
 function newWave(){
   aliens=[];
-  const startY=78+Math.min(wave-1,6)*12, startX=(FW-COLS*CW)/2;
-  ROWS.forEach(([kind,col,pts],r)=>{for(let c=0;c<COLS;c++)
-    aliens.push({kind,col,pts,c,x:startX+c*CW+(CW-SP[kind].w)/2,y:startY+r*CH,w:SP[kind].w,h:SP[kind].h,alive:true});});
+  const R=wave>=4?6:5, names=Object.keys(FORMS);
+  formName=wave===1?'Klassiek':names[1+Math.floor(rnd()*(names.length-1))];
+  const startY=78+Math.min(wave-1,6)*(R===6?8:12), startX=(FW-COLS*CW)/2;
+  for(let r=0;r<R;r++){
+    const [kind,col,pts]=ROWS[r];
+    for(let c=0;c<COLS;c++){
+      const d=c<COLS/2?COLS/2-1-c:c-COLS/2;
+      if(!FORMS[formName](r,d,R))continue;
+      aliens.push({kind,col,pts,r,c,x:startX+c*CW+(CW-SP[kind].w)/2,y:startY+r*CH,w:SP[kind].w,h:SP[kind].h,alive:true});
+    }
+  }
+  // te weinig aliens over in deze vorm: dan toch de klassieke
+  if(aliens.length<16&&formName!=='Klassiek'){formName='Klassiek';aliens=[];
+    for(let r=0;r<R;r++){const [kind,col,pts]=ROWS[r];for(let c=0;c<COLS;c++)
+      aliens.push({kind,col,pts,r,c,x:startX+c*CW+(CW-SP[kind].w)/2,y:startY+r*CH,w:SP[kind].w,h:SP[kind].h,alive:true});}}
   dir=1;stepT=0;frame=0;shots=[];bombs=[];drops=[];ufo=null;ufoT=14+rnd()*10;shields=makeShields();banner=1.6;
   $('wave').textContent=wave;
 }
 function reset(){
-  score=0;lives=3;wave=1;parts=[];fireCd=0;deadT=0;nextLife=2000;spreadT=0;rapidT=0;bubble=false;flash=null;
+  score=0;lives=3;wave=1;parts=[];fireCd=0;deadT=0;nextLife=2000;spreadT=0;rapidT=0;pierceT=0;freezeT=0;bubble=false;flash=null;
   player={x:FW/2,y:FH-40,w:SP.schip.w,h:SP.schip.h};
   $('score').textContent=0;showLives();newWave();
 }
@@ -206,6 +235,8 @@ function update(dt){
   if(banner>0)banner-=dt;
   if(spreadT>0)spreadT-=dt;
   if(rapidT>0)rapidT-=dt;
+  if(pierceT>0)pierceT-=dt;
+  if(freezeT>0)freezeT-=dt;
   if(flash&&(flash.t-=dt)<=0)flash=null;
   const live=aliens.filter(a=>a.alive);
 
@@ -225,7 +256,7 @@ function update(dt){
 
   // aliens marcheren: hoe minder er over zijn, hoe sneller
   const interval=(0.04+0.5*live.length/aliens.length)/(1+(wave-1)*0.12);
-  stepT+=dt;
+  if(freezeT<=0)stepT+=dt;
   if(stepT>=interval&&live.length){
     stepT=0;frame^=1;stepN++;beep(BASS[stepN%4],0.06,'square',0.04);
     const minX=Math.min(...live.map(a=>a.x)), maxX=Math.max(...live.map(a=>a.x+a.w));
@@ -237,7 +268,7 @@ function update(dt){
 
   // aliens schieten terug, altijd de onderste van een kolom
   const maxBombs=Math.min(2+Math.floor(wave/2),6);
-  if(live.length&&bombs.length<maxBombs&&rnd()<dt*(0.9+wave*0.18)){
+  if(freezeT<=0&&live.length&&bombs.length<maxBombs&&rnd()<dt*(0.9+wave*0.18)){
     const colsAlive=[...new Set(live.map(a=>a.c))], c=colsAlive[Math.floor(rnd()*colsAlive.length)];
     const shooter=live.filter(a=>a.c===c).reduce((p,a)=>a.y>p.y?a:p);
     bombs.push({x:shooter.x+shooter.w/2,y:shooter.y+shooter.h,t:0});
@@ -253,7 +284,8 @@ function update(dt){
     if(s.y<0||s.x<0||s.x>FW){s.done=true;continue;}
     if(hitShield(s.x-1,s.y,2,8,true)){s.done=true;continue;}
     for(const a of live)if(a.alive&&s.x>=a.x&&s.x<=a.x+a.w&&s.y<=a.y+a.h&&s.y+8>=a.y){
-      a.alive=false;s.done=true;addScore(a.pts);boom(a.x+a.w/2,a.y+a.h/2,a.col);beep(220,0.12,'sawtooth',0.05);maybeDrop(a);break;
+      killAlien(a);
+      if(pierceT<=0){s.done=true;break;}   // doorboor: kogel gaat verder
     }
     if(!s.done&&ufo&&s.x>=ufo.x&&s.x<=ufo.x+SP.ufo.w&&s.y<=ufo.y+SP.ufo.h&&s.y>=ufo.y){
       const pts=[50,100,150,300][Math.floor(rnd()*4)];addScore(pts);
@@ -293,11 +325,18 @@ function update(dt){
 }
 
 const DROP={drie:['#6cb6ff','3','Driedubbel!'],snel:['#ffe066','\u00bb','Snelvuur!'],schild:['#4fd1c5','\u25ef','Schild!'],
-  herstel:['#7bd88f','\u25a6','Schilden hersteld!'],leven:['#ff7a7a','\u2665','+1 leven']};
+  herstel:['#7bd88f','\u25a6','Schilden hersteld!'],leven:['#ff7a7a','\u2665','+1 leven'],
+  door:['#b48cff','\u219f','Doorboor!'],bom:['#ffb347','\u2738','Boem!'],ijs:['#a8e6ff','\u2744','Bevroren!']};
+// kans per soort (samen 1)
+const DROP_KANS=[['drie',.2],['snel',.2],['door',.14],['schild',.13],['ijs',.11],['bom',.1],['herstel',.07],['leven',.05]];
 function maybeDrop(a){
-  if(rnd()>=0.07)return;
-  const q=rnd(), type=q<0.3?'drie':q<0.6?'snel':q<0.8?'schild':q<0.93?'herstel':'leven';
+  if(rnd()>=0.08)return;
+  let q=rnd(),type='drie';
+  for(const [k,p] of DROP_KANS){if(q<p){type=k;break;}q-=p;}
   drops.push({x:a.x+a.w/2,y:a.y+a.h,type});
+}
+function killAlien(a){
+  a.alive=false;addScore(a.pts);boom(a.x+a.w/2,a.y+a.h/2,a.col);beep(220,0.12,'sawtooth',0.05);maybeDrop(a);
 }
 function catchDrop(d){
   beep(880,0.12,'sine',0.1);addScore(25);
@@ -305,6 +344,13 @@ function catchDrop(d){
   else if(d.type==='snel')rapidT=8;
   else if(d.type==='schild')bubble=true;
   else if(d.type==='herstel')shields=makeShields();
+  else if(d.type==='door')pierceT=8;
+  else if(d.type==='ijs')freezeT=6;
+  else if(d.type==='bom'){  // de onderste rij ontploft
+    const live=aliens.filter(a=>a.alive);
+    if(live.length){const low=Math.max(...live.map(a=>a.r));for(const a of live)if(a.r===low)killAlien(a);}
+    beep(70,0.5,'sawtooth',0.1);
+  }
   else{lives=Math.min(lives+1,5);showLives();}
   flash={text:DROP[d.type][2],col:DROP[d.type][0],x:player.x,t:1.2};
 }
@@ -369,14 +415,14 @@ function draw(t){
   for(let i=0;i<40;i++){const x=(i*97)%FW,y=(i*157+(t/60)*(1+i%3))%FH;ctx.fillRect(x,y,1.5,1.5);}
   if(!player)return;
 
-  for(const a of aliens)if(a.alive)sprite(a.kind,frame,a.x,a.y,a.col);
+  for(const a of aliens)if(a.alive)sprite(a.kind,frame,a.x,a.y,freezeT>0?'#a8e6ff':a.col);
   if(ufo)sprite('ufo',0,ufo.x,ufo.y,'#ff7a7a');
   ctx.fillStyle='#7bd88f';
   for(const s of shields)for(let i=0;i<s.cells.length;i++)if(s.cells[i])ctx.fillRect(s.x+(i%SHW)*PX,s.y+Math.floor(i/SHW)*PX,PX,PX);
   if(deadT<=0||Math.floor(deadT*10)%2)sprite('schip',0,player.x-player.w/2,player.y,'#7bd88f');
   ctx.fillRect(0,FH-14,FW,2);
-  ctx.fillStyle='#f4f0e6';
-  for(const s of shots)ctx.fillRect(s.x-1,s.y,2,8);
+  ctx.fillStyle=pierceT>0?'#b48cff':'#f4f0e6';
+  for(const s of shots)ctx.fillRect(s.x-1,s.y,pierceT>0?3:2,8);
   ctx.font='600 11px Outfit, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
   for(const d of drops){
     const [col,ch]=DROP[d.type];
@@ -390,6 +436,8 @@ function draw(t){
   // balkjes die aftellen
   if(spreadT>0){ctx.fillStyle='#6cb6ff';ctx.fillRect(FW/2-40,FH-10,80*Math.min(1,spreadT/8),3);}
   if(rapidT>0){ctx.fillStyle='#ffe066';ctx.fillRect(FW/2-40,FH-5,80*Math.min(1,rapidT/8),3);}
+  if(pierceT>0){ctx.fillStyle='#b48cff';ctx.fillRect(FW/2+46,FH-10,40*Math.min(1,pierceT/8),3);}
+  if(freezeT>0){ctx.fillStyle='#a8e6ff';ctx.fillRect(FW/2-86,FH-10,40*Math.min(1,freezeT/6),3);}
   if(flash){
     ctx.globalAlpha=Math.min(1,flash.t*2);ctx.fillStyle=flash.col;ctx.font='400 16px Bungee, Impact, sans-serif';
     ctx.fillText(flash.text,clamp(flash.x,80,FW-80),player.y-26-(1.2-flash.t)*30);ctx.globalAlpha=1;
@@ -405,7 +453,8 @@ function draw(t){
   ctx.globalAlpha=1;
   if(banner>0&&state==='play'){
     ctx.globalAlpha=Math.min(1,banner*2);ctx.fillStyle='#f4f0e6';ctx.font='400 36px Bungee, Impact, sans-serif';
-    ctx.fillText('Golf '+wave,FW/2,FH*0.5);ctx.globalAlpha=1;
+    ctx.fillText('Golf '+wave,FW/2,FH*0.5);
+    ctx.fillStyle='#9097b5';ctx.font='400 15px Outfit, system-ui, sans-serif';ctx.fillText(formName,FW/2,FH*0.5+32);ctx.globalAlpha=1;
   }
 }
 
