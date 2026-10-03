@@ -1,5 +1,5 @@
 // Versie van de site. Verhoog met tools/bump-version.sh, dat ook de verwijzingen in alle pagina's bijwerkt.
-const SITE_VERSION = '3.6';
+const SITE_VERSION = '3.7';
 
 // Staat er online al een nieuwere versie? Dan meteen de verse pagina laden, één keer per versie.
 (function(){
@@ -44,4 +44,30 @@ const SITE_VERSION = '3.6';
     if(/\/games\//.test(location.pathname))
       for(const ev of['gesturestart','gesturechange'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
   }catch(e){}
+})();
+
+// Geluid aan/uit, gedeeld door alle games. Elke game vraagt SITE_SOUND.on voor hij een geluid maakt.
+// Op het start- en eindscherm van elke game komt een knop; op de computer werkt ook de toets M.
+window.SITE_SOUND=(function(){
+  let on=true;try{on=localStorage.getItem('geluid')!=='uit'}catch(e){}
+  const api={get on(){return on},set(v){on=v;try{localStorage.setItem('geluid',v?'aan':'uit')}catch(e){}refresh();}};
+  const label=()=>on?'\u{1F50A} Geluid aan':'\u{1F507} Geluid uit';
+  function refresh(){document.querySelectorAll('.snd').forEach(b=>{b.textContent=label();b.setAttribute('aria-pressed',on);});}
+  if(/\/games\//.test(location.pathname)){
+    const add=()=>{
+      const st=document.createElement('style');
+      st.textContent='.panel .snd{font-family:inherit;font-size:14px;font-weight:600;color:#9097b5;background:transparent;border:2px solid #2f3860;'+
+        'border-radius:4px;padding:8px 12px;box-shadow:none;align-self:center;cursor:pointer}.panel .snd:active{transform:none;box-shadow:none}';
+      document.head.appendChild(st);
+      document.querySelectorAll('.overlay .panel').forEach(p=>{
+        const b=document.createElement('button');b.type='button';b.className='snd';
+        b.addEventListener('click',()=>api.set(!on));
+        const ver=p.querySelector('.ver');ver?p.insertBefore(b,ver):p.appendChild(b);
+      });
+      refresh();
+    };
+    document.readyState==='loading'?document.addEventListener('DOMContentLoaded',add):add();
+    addEventListener('keydown',e=>{if(e.code==='KeyM'&&!e.ctrlKey&&!e.metaKey&&!e.altKey)api.set(!on);});
+  }
+  return api;
 })();

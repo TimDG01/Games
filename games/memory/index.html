@@ -99,7 +99,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=3.6"></script>
+<script src="../../version.js?v=3.7"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -128,6 +128,7 @@ document.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',
 /* geluid: kleine piep, start pas na de eerste tik */
 let ac=null;
 function beep(f,d=0.09,type='triangle',v=0.12){
+  if(window.SITE_SOUND&&!SITE_SOUND.on)return;   // geluid uitgezet
   try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)();
     const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
     g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+d);
