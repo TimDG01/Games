@@ -127,7 +127,7 @@ const PATTERNS={
   kolommen:(r,c,R)=>c%2===0||r<2,
 };
 function makeLevel(L){
-  const R=Math.min(4+Math.floor(L/2),10);
+  const R=Math.min(6+Math.floor((L-1)*0.7),14);
   const names=Object.keys(PATTERNS);
   const name=L===1?'vol':names[1+Math.floor(rnd()*(names.length-1))];
   const p2=clamp((L-1)*0.08,0,0.45), p3=clamp((L-4)*0.05,0,0.3), pS=L>=5?Math.min(0.09,(L-4)*0.015):0;
