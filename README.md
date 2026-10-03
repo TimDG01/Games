@@ -26,3 +26,6 @@ tools/bump-version.sh 2.3
 Dat zet de versie ook in de verwijzing naar `version.js` in elke pagina. Elke pagina kijkt bij het openen of er online
 een nieuwere versie staat en laadt die dan meteen, zodat telefoons niet op een oude kopie blijven hangen.
 Een nieuwe game laadt `version.js` dus met `<script src="../../version.js?v=…"></script>`.
+
+`version.js` zet ook dubbeltik-zoom uit (`touch-action: manipulation`) en blokkeert knijp-zoom in de games,
+omdat iPhones `user-scalable=no` negeren. Elke pagina die `version.js` laadt, krijgt dat vanzelf.
