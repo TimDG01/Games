@@ -36,6 +36,11 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 .c.same{background:#33406e}
 .c.sel{background:#4a5aa0}
 .c.bad{color:#ff7a7a}
+.c.bad.marked{background:#4a2633}
+.opt{display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;color:var(--muted);cursor:pointer}
+.opt input{width:20px;height:20px;accent-color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 150px);transform:translateX(-50%);background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:10px 16px;font-size:15px;pointer-events:none;opacity:0;transition:opacity .3s;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
 .c.flash{animation:flash .5s ease-out}
 @keyframes flash{40%{background:#7bd88f}}
 .notes{position:absolute;inset:2px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
@@ -81,7 +86,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
   <div class="top">
     <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
     <div class="stat"><b id="time">0:00</b><span>Tijd</span></div>
-    <div class="stat"><b id="miss">0</b><span>Fouten</span></div>
+    <div class="stat"><b id="miss">0</b><span id="misslabel">Controles</span></div>
     <button class="menu" id="menu" aria-label="Nieuw spel">&#9776;</button>
   </div>
   <div id="best">Record –</div>
@@ -90,9 +95,11 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
     <button id="undo"><i>&#8630;</i>Terug</button>
     <button id="erase"><i>&#9003;</i>Wissen</button>
     <button id="notes" aria-pressed="false"><i>&#9998;</i>Notities</button>
+    <button id="check"><i>&#10003;</i>Controle</button>
     <button id="hint"><i>&#128161;</i>Hint</button>
   </div>
   <div class="pad" id="pad"></div>
+  <div class="toast" id="toast"></div>
 
   <div class="overlay" id="start">
     <div class="panel">
@@ -105,6 +112,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
       </div>
       <button id="go">Nieuw spel</button>
       <button class="alt" id="resume" hidden>Verder spelen</button>
+      <label class="opt"><input type="checkbox" id="auto"> Fouten meteen tonen</label>
       <div class="ver">Versie <span id="ver"></span></div>
     </div>
   </div>
@@ -120,7 +128,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
   </div>
 </div>
 
-<script src="../../version.js?v=3.1"></script>
+<script src="../../version.js?v=3.2"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -131,6 +139,7 @@ const bestKey=l=>'sudoku-best-'+l;
 const fmt=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
 
 let level='makkelijk'; try{const l=localStorage.getItem('sudoku-level');if(LEVELS[l])level=l}catch(e){}
+let autoCheck=false; try{autoCheck=localStorage.getItem('sudoku-auto')==='1'}catch(e){}
 let G=null, sel=-1, noteMode=false, timer=null, t0=0, state='start', best=0;
 
 /* ---------- puzzel maken ---------- */
@@ -219,7 +228,8 @@ function render(){
     const d=cells[i],v=G.vals[i];
     d.className='c'+(COL(i)===2||COL(i)===5?' br':'')+(ROW(i)===2||ROW(i)===5?' bb':'');
     if(G.puz[i])d.classList.add('given');
-    if(v&&v!==G.sol[i])d.classList.add('bad');
+    // fout tonen: altijd bij 'meteen tonen', anders alleen na Controle tot je het vakje aanpast
+    if(v&&v!==G.sol[i]&&(autoCheck||G.marked.includes(i)))d.classList.add('bad',...(autoCheck?[]:['marked']));
     if(sel>=0){
       if(i===sel)d.classList.add('sel');
       else if(sv&&v===sv)d.classList.add('same');
@@ -230,12 +240,13 @@ function render(){
       let h='<div class="notes">';for(let n=1;n<=9;n++)h+='<span>'+(G.notes[i]&(1<<n)?n:'')+'</span>';d.innerHTML=h+'</div>';
     }else d.textContent='';
   }
-  // per cijfer: hoeveel er nog te plaatsen zijn
+  // per cijfer: hoeveel er nog te plaatsen zijn (geteld zoals ingevuld, zonder te verklappen of het klopt)
   for(let n=1;n<=9;n++){
-    let k=0;for(let i=0;i<81;i++)if(G.vals[i]===n&&G.sol[i]===n)k++;
+    let k=0;for(let i=0;i<81;i++)if(G.vals[i]===n)k++;
     padBtns[n-1].classList.toggle('done',k>=9);padBtns[n-1].querySelector('small').textContent=9-k||'';
   }
-  $('miss').textContent=G.mistakes;
+  $('miss').textContent=autoCheck?G.mistakes:G.checks;
+  $('misslabel').textContent=autoCheck?'Fouten':'Controles';
 }
 
 function showBest(){$('best').textContent='Record '+(best?fmt(best):'–')+' · '+LEVELS[level].name;}
@@ -254,7 +265,7 @@ function startTimer(){
 
 function newGame(){
   const {puz,sol}=generate(LEVELS[level].givens);
-  G={level,puz,sol,vals:puz.slice(),notes:new Array(81).fill(0),mistakes:0,hints:0,base:0,hist:[]};
+  G={level,puz,sol,vals:puz.slice(),notes:new Array(81).fill(0),mistakes:0,hints:0,checks:0,marked:[],base:0,hist:[]};
   begin();
 }
 function begin(){
@@ -264,7 +275,7 @@ function begin(){
 }
 function resume(){
   const s=loadSave();if(!s)return newGame();
-  setLevel(s.level);G={...s,base:s.elapsed||0,hist:[]};begin();
+  setLevel(s.level);G={checks:0,marked:[],...s,base:s.elapsed||0,hist:[]};begin();
 }
 
 /* ---------- invoer ---------- */
@@ -279,12 +290,11 @@ function place(d){
     record(i);G.notes[i]^=1<<d;beep(500,0.03);
   }else{
     if(G.vals[i]===d)return;
-    record(i);G.vals[i]=d;G.notes[i]=0;
-    if(d!==G.sol[i]){G.mistakes++;beep(160,0.2,'sawtooth',0.06);}
-    else{
-      for(const j of PEERS[i])G.notes[j]&=~(1<<d);   // notities met dit cijfer opruimen
-      beep(660,0.05);checkGroups(i);
-    }
+    record(i);G.vals[i]=d;G.notes[i]=0;unmark(i);
+    for(const j of PEERS[i])G.notes[j]&=~(1<<d);   // notities met dit cijfer opruimen
+    if(d!==G.sol[i])G.mistakes++;
+    if(autoCheck&&d!==G.sol[i])beep(160,0.2,'sawtooth',0.06);
+    else{beep(660,0.05);checkGroups(i);}
   }
   render();save();checkWin();
 }
@@ -292,17 +302,18 @@ function place(d){
 function checkGroups(i){
   const groups=[[...Array(9)].map((_,k)=>ROW(i)*9+k),[...Array(9)].map((_,k)=>k*9+COL(i)),
     [...Array(81).keys()].filter(j=>BOX(j)===BOX(i))];
-  for(const g of groups)if(g.every(j=>G.vals[j]===G.sol[j]))
+  // oplichten als de groep vol is zonder dubbele cijfers (verklapt niet of het de oplossing is)
+  for(const g of groups)if(g.every(j=>G.vals[j])&&new Set(g.map(j=>G.vals[j])).size===9)
     g.forEach((j,k)=>setTimeout(()=>{cells[j].classList.remove('flash');void cells[j].offsetWidth;cells[j].classList.add('flash');},k*30));
 }
 function erase(){
   if(state!=='play'||sel<0||G.puz[sel])return;
   if(!G.vals[sel]&&!G.notes[sel])return;
-  record(sel);G.vals[sel]=0;G.notes[sel]=0;render();save();
+  record(sel);G.vals[sel]=0;G.notes[sel]=0;unmark(sel);render();save();
 }
 function undo(){
   if(state!=='play'||!G.hist.length)return;
-  const h=G.hist.pop();G.vals[h.i]=h.v;G.notes[h.i]=h.n;for(const [j,n] of h.peers)G.notes[j]=n;
+  const h=G.hist.pop();G.vals[h.i]=h.v;G.notes[h.i]=h.n;unmark(h.i);for(const [j,n] of h.peers)G.notes[j]=n;
   sel=h.i;render();save();
 }
 function hint(){
@@ -312,12 +323,28 @@ function hint(){
     const open=[...Array(81).keys()].filter(j=>G.vals[j]!==G.sol[j]);
     if(!open.length)return;i=open[Math.floor(Math.random()*open.length)];
   }
-  record(i);G.vals[i]=G.sol[i];G.notes[i]=0;G.hints++;sel=i;
+  record(i);G.vals[i]=G.sol[i];G.notes[i]=0;G.hints++;sel=i;unmark(i);
   for(const j of PEERS[i])G.notes[j]&=~(1<<G.sol[i]);
   beep(880,0.1,'sine');checkGroups(i);render();save();checkWin();
 }
+function unmark(i){const k=G.marked.indexOf(i);if(k>=0)G.marked.splice(k,1);}
+let toastT=null;
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200);}
+// Controle: foute cijfers rood tonen tot je ze aanpast
+function check(){
+  if(state!=='play')return;
+  G.checks++;
+  const wrong=[...Array(81).keys()].filter(i=>G.vals[i]&&G.vals[i]!==G.sol[i]);
+  G.marked=wrong;
+  if(wrong.length){toast(wrong.length===1?'1 cijfer klopt niet':wrong.length+' cijfers kloppen niet');beep(220,0.15,'sawtooth',0.05);}
+  else{toast('Alles klopt tot nu toe!');beep(784,0.1);}
+  render();save();
+}
 function checkWin(){
-  if(!G.vals.every((v,i)=>v===G.sol[i]))return;
+  if(!G.vals.every((v,i)=>v===G.sol[i])){
+    if(G.vals.every(v=>v))toast('Alles is ingevuld, maar er klopt nog iets niet. Tik op Controle.');
+    return;
+  }
   state='over';clearInterval(timer);
   const t=Math.max(1,Math.floor(G.base+(performance.now()-t0)/1000));G.base=t;$('time').textContent=fmt(t);
   clearSave();
@@ -326,7 +353,7 @@ function checkWin(){
   if(rec){best=t;try{localStorage.setItem(bestKey(level),best)}catch(e){}showBest();}
   [523,659,784,1047].forEach((f,k)=>setTimeout(()=>beep(f,0.12),300+k*110));
   $('final').textContent=fmt(t);
-  $('overmsg').textContent=LEVELS[level].name+' · '+G.mistakes+(G.mistakes===1?' fout':' fouten')+(G.hints?' · '+G.hints+(G.hints===1?' hint':' hints')+' (telt niet als record)':'')+(rec?' · nieuw record!':'');
+  $('overmsg').textContent=LEVELS[level].name+(autoCheck?' · '+G.mistakes+(G.mistakes===1?' fout':' fouten'):' · '+G.checks+(G.checks===1?' controle':' controles'))+(G.hints?' · '+G.hints+(G.hints===1?' hint':' hints')+' (telt niet als record)':'')+(rec?' · nieuw record!':'');
   setTimeout(()=>{$('over').hidden=false;$('again').focus();},900);
 }
 
@@ -335,6 +362,9 @@ pad.addEventListener('click',e=>{const b=e.target.closest('button');if(b)place(+
 $('erase').addEventListener('click',erase);
 $('undo').addEventListener('click',undo);
 $('hint').addEventListener('click',hint);
+$('check').addEventListener('click',check);
+$('auto').checked=autoCheck;
+$('auto').addEventListener('change',e=>{autoCheck=e.target.checked;try{localStorage.setItem('sudoku-auto',autoCheck?'1':'0')}catch(err){}render();});
 $('notes').addEventListener('click',()=>setNotes(!noteMode));
 addEventListener('keydown',e=>{
   if(state!=='play')return;
