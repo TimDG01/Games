@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Breakout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;600&display=swap">
+<style>
+/* Layout: tellers bovenaan, staand speelveld eronder dat zich aan het scherm aanpast, panelen erover */
+:root{
+  --bg:#141a2e; --bg-deep:#0b0f1d; --fg:#f4f0e6; --muted:#9097b5; --accent:#ffb347; --panel:#1d2440;
+  --display:'Bungee', Impact, 'Arial Black', sans-serif;
+  --body:'Outfit', system-ui, -apple-system, sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#wrap{position:fixed;inset:0;touch-action:none}
+canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
+.top{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 12px);margin:0 auto;padding:0 12px;max-width:520px;height:44px;
+  display:grid;grid-template-columns:44px 1fr 1fr 1fr 44px;align-items:center;gap:6px;pointer-events:none}
+.stat{text-align:center;line-height:1}
+.stat b{display:block;font-family:var(--display);font-weight:400;font-size:24px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+#lives{color:#ff7a7a;letter-spacing:.05em}
+.home{pointer-events:auto;width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
+.home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.overlay{position:absolute;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62)}
+.overlay[hidden]{display:none}
+.panel{background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:28px 24px;max-width:320px;width:100%;text-align:center;
+  display:flex;flex-direction:column;gap:14px;box-shadow:8px 8px 0 var(--bg-deep)}
+.panel h1{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.05;margin:0;text-wrap:balance}
+.panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.45}
+.ver{font-size:12px;color:var(--muted);letter-spacing:.08em}
+.big{font-family:var(--display);font-size:56px;line-height:1;color:var(--accent)}
+.legend{display:flex;justify-content:center;gap:14px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-grid;place-items:center;width:20px;height:14px;border-radius:7px;margin-right:4px;font-style:normal;font-size:10px;font-weight:600;color:#0b0f1d;vertical-align:-2px}
+button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
+  padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
+button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+</style>
+</head><body>
+
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div class="top" id="top">
+    <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
+    <div class="stat"><b id="score">0</b><span>Score</span></div>
+    <div class="stat"><b id="level">1</b><span>Level</span></div>
+    <div class="stat"><b id="lives">&#9829;&#9829;&#9829;</b><span>Levens</span></div>
+    <div></div>
+  </div>
+
+  <div class="overlay" id="start">
+    <div class="panel">
+      <h1>Breakout</h1>
+      <p>Schuif met je vinger of muis om het plankje te bewegen en tik om de bal te lanceren. Breek alle stenen. Elk level is nieuw en een beetje moeilijker.</p>
+      <div class="legend">
+        <span><i style="background:#7bd88f">&#8596;</i>Breed</span>
+        <span><i style="background:#6cb6ff">3</i>Ballen</span>
+        <span><i style="background:#ff7a7a">&#9829;</i>Leven</span>
+      </div>
+      <p id="bestline">Record 0</p>
+      <button id="go">Start</button>
+      <div class="ver">Versie <span id="ver"></span></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="over" hidden>
+    <div class="panel">
+      <h1>Game over</h1>
+      <div class="big" id="final">0</div>
+      <p id="overmsg">punten</p>
+      <button id="again">Opnieuw</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../version.js"></script>
+<script>
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+try{$('ver').textContent=SITE_VERSION}catch(e){}
+
+// speelveld in vaste eenheden, geschaald naar het scherm
+const FW=400, FH=600, COLS=10, BW=38, BH=16, GAP=2, BX=(FW-COLS*BW)/2, BY=56;
+let W,H,dpr,S,fx,fy;
+function resize(){
+  dpr=Math.min(window.devicePixelRatio||1,3);W=innerWidth;H=innerHeight;
+  cv.width=W*dpr;cv.height=H*dpr;
+  const top=$('top').getBoundingClientRect().bottom+10, bottom=12;
+  const avH=H-top-bottom;
+  S=Math.min((W-16)/FW,avH/FH);fx=(W-FW*S)/2;fy=top+(avH-FH*S)/2;
+}
+addEventListener('resize',resize);resize();
+
+let best=0; try{best=+localStorage.getItem('breakout-best')||0}catch(e){}
+$('bestline').textContent='Record '+best;
+
+let state='start',score,lives,level,bricks,balls,drops,parts,paddle,banner=0,keyDir=0;
+
+/* geluid: kleine piep, start pas na de eerste tik */
+let ac=null;
+function beep(f,d=0.07,type='triangle',v=0.1){
+  try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+d);
+    o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d);}catch(e){}
+}
+
+const rnd=Math.random, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const speed=()=>Math.min(270+level*14,440);
+
+/* --- levels: willekeurig patroon, altijd links-rechts gespiegeld --- */
+const HALF=COLS/2;
+const PATTERNS={
+  vol:     (r,c,R)=>true,
+  ruis:    (r,c,R)=>rnd()<0.72,
+  piramide:(r,c,R)=>HALF-1-c<=r*HALF/R+0.5,
+  omgekeerd:(r,c,R)=>HALF-1-c<=(R-1-r)*HALF/R+0.5,
+  ruit:    (r,c,R)=>Math.abs(r-(R-1)/2)+(HALF-1-c)<=Math.max(2,R/2+1),
+  dambord: (r,c,R)=>(r+c)%2===0,
+  strepen: (r,c,R)=>r%2===0||c%2===0,
+  kader:   (r,c,R)=>r===0||r===R-1||c===0||c===HALF-1||rnd()<0.3,
+  kolommen:(r,c,R)=>c%2===0||r<2,
+};
+function makeLevel(L){
+  const R=Math.min(4+Math.floor(L/2),10);
+  const names=Object.keys(PATTERNS);
+  const name=L===1?'vol':names[1+Math.floor(rnd()*(names.length-1))];
+  const p2=clamp((L-1)*0.08,0,0.45), p3=clamp((L-4)*0.05,0,0.3), pS=L>=5?Math.min(0.09,(L-4)*0.015):0;
+  const hue0=rnd()*360, out=[];
+  for(let r=0;r<R;r++)for(let c=0;c<HALF;c++){
+    if(!PATTERNS[name](r,c,R))continue;
+    const q=rnd();
+    const steel=r<R-1&&q<pS, hp=steel?1:q<p3?3:q<p3+p2?2:1;
+    for(const cc of[c,COLS-1-c])
+      out.push({x:BX+cc*BW+GAP/2,y:BY+r*(BH+GAP),w:BW-GAP,h:BH,hp,max:hp,steel,hue:(hue0+r*14)%360,alive:true});
+  }
+  // te weinig breekbare stenen: dan gewoon een volle muur
+  if(out.filter(b=>!b.steel).length<14)return makeLevel(1);
+  return out;
+}
+
+function newBall(){return{x:paddle.x,y:paddle.y-7,vx:0,vy:0,r:6,stuck:true};}
+function startLevel(){
+  bricks=makeLevel(level);balls=[newBall()];drops=[];paddle.wideT=0;banner=1.6;
+  $('level').textContent=level;
+}
+function reset(){
+  score=0;lives=3;level=1;parts=[];
+  paddle={x:FW/2,y:FH-36,w:72,h:12,wideT:0};
+  $('score').textContent=0;showLives();startLevel();
+}
+function showLives(){$('lives').textContent=lives>0?'♥'.repeat(lives):'–';}
+
+function launch(){
+  for(const b of balls)if(b.stuck){
+    const a=(rnd()-0.5)*0.6, sp=speed();
+    b.vx=sp*Math.sin(a);b.vy=-sp*Math.cos(a);b.stuck=false;banner=Math.min(banner,0.3);
+  }
+}
+
+function addScore(n){score+=n;$('score').textContent=score;}
+
+function hitBrick(b){
+  if(b.steel){beep(180,0.05,'square',0.05);return;}
+  b.hp--;
+  if(b.hp>0){beep(300+b.hp*80,0.05);addScore(5);return;}
+  b.alive=false;addScore(10*b.max);beep(520+rnd()*200,0.06);
+  for(let i=0;i<8;i++)parts.push({x:b.x+b.w/2,y:b.y+b.h/2,vx:(rnd()-0.5)*220,vy:(rnd()-0.7)*200,t:0.6,hue:b.hue});
+  if(rnd()<0.12){
+    const q=rnd(), type=q<0.45?'breed':q<0.85?'multi':'leven';
+    drops.push({x:b.x+b.w/2,y:b.y+b.h/2,type});
+  }
+}
+
+function catchDrop(d){
+  beep(880,0.12,'sine',0.1);addScore(25);
+  if(d.type==='breed')paddle.wideT=12;
+  else if(d.type==='leven'){lives=Math.min(lives+1,6);showLives();}
+  else{
+    launch();
+    const extra=[];
+    for(const b of balls.slice(0,4))for(const da of[-0.35,0.35]){
+      const sp=Math.hypot(b.vx,b.vy), a=Math.atan2(b.vx,-b.vy)+da;
+      extra.push({x:b.x,y:b.y,r:b.r,vx:sp*Math.sin(a),vy:-Math.abs(sp*Math.cos(a)),stuck:false});
+    }
+    balls.push(...extra);
+  }
+}
+
+// één klein stapje voor één bal, met botsingen
+function moveBall(b,h){
+  b.x+=b.vx*h;b.y+=b.vy*h;
+  if(b.x<b.r){b.x=b.r;b.vx=Math.abs(b.vx);}
+  if(b.x>FW-b.r){b.x=FW-b.r;b.vx=-Math.abs(b.vx);}
+  if(b.y<b.r){b.y=b.r;b.vy=Math.abs(b.vy);}
+  const pw=paddle.w/2;
+  if(b.vy>0&&b.y+b.r>=paddle.y&&b.y-b.r<=paddle.y+paddle.h&&b.x>=paddle.x-pw-b.r&&b.x<=paddle.x+pw+b.r){
+    // waar de bal het plankje raakt bepaalt de hoek
+    const rel=clamp((b.x-paddle.x)/pw,-1,1), a=rel*1.05, sp=Math.max(Math.hypot(b.vx,b.vy),speed());
+    b.vx=sp*Math.sin(a);b.vy=-sp*Math.cos(a);b.y=paddle.y-b.r;beep(260,0.04);
+    return;
+  }
+  for(const k of bricks){
+    if(!k.alive)continue;
+    const cx=clamp(b.x,k.x,k.x+k.w), cy=clamp(b.y,k.y,k.y+k.h), dx=b.x-cx, dy=b.y-cy;
+    if(dx*dx+dy*dy>=b.r*b.r)continue;
+    if(Math.abs(dx)>Math.abs(dy)){b.vx=Math.sign(dx)*Math.abs(b.vx);b.x=cx+Math.sign(dx)*b.r;}
+    else{const s=dy===0?(b.vy>0?-1:1):Math.sign(dy);b.vy=s*Math.abs(b.vy);b.y=cy+s*b.r;}
+    // niet te vlak laten worden, anders duurt het eindeloos
+    const sp=Math.hypot(b.vx,b.vy);
+    if(Math.abs(b.vy)<sp*0.28){b.vy=Math.sign(b.vy||1)*sp*0.28;b.vx=Math.sign(b.vx)*Math.sqrt(sp*sp-b.vy*b.vy);}
+    hitBrick(k);
+    return;
+  }
+}
+
+function update(dt){
+  // plankje
+  const target=paddle.wideT>0?112:72;
+  paddle.w+=(target-paddle.w)*Math.min(1,dt*10);
+  if(paddle.wideT>0)paddle.wideT-=dt;
+  if(keyDir)paddle.x+=keyDir*520*dt;
+  paddle.x=clamp(paddle.x,paddle.w/2,FW-paddle.w/2);
+  if(banner>0)banner-=dt;
+
+  for(const b of balls){
+    if(b.stuck){b.x=paddle.x;b.y=paddle.y-b.r;continue;}
+    const n=Math.ceil(Math.hypot(b.vx,b.vy)*dt/3);
+    for(let i=0;i<n;i++)moveBall(b,dt/n);
+  }
+  balls=balls.filter(b=>b.y<FH+30);
+  for(const d of drops){
+    d.y+=140*dt;
+    if(d.y+7>=paddle.y&&d.y-7<=paddle.y+paddle.h&&Math.abs(d.x-paddle.x)<=paddle.w/2+14){d.got=true;catchDrop(d);}
+  }
+  drops=drops.filter(d=>!d.got&&d.y<FH+20);
+
+  if(!balls.length){
+    lives--;showLives();beep(140,0.3,'sawtooth',0.07);
+    if(lives<=0)return end();
+    balls=[newBall()];drops=[];paddle.wideT=0;
+  }
+  if(bricks.every(k=>!k.alive||k.steel)){
+    addScore(100*level);level++;
+    [523,659,784].forEach((f,i)=>setTimeout(()=>beep(f,0.1),i*90));
+    startLevel();
+  }
+}
+
+function end(){
+  state='over';
+  const rec=score>best;
+  if(rec){best=score;try{localStorage.setItem('breakout-best',best)}catch(e){}}
+  $('bestline').textContent='Record '+best;
+  $('final').textContent=score;
+  $('overmsg').textContent=(score===1?'punt':'punten')+' · level '+level+(rec&&score>0?' · nieuw record!':'');
+  setTimeout(()=>{$('over').hidden=false;$('again').focus();},500);
+}
+
+function start(){$('start').hidden=true;$('over').hidden=true;reset();state='play';beep(520,0.08);}
+$('go').addEventListener('click',start);
+$('again').addEventListener('click',start);
+
+// besturing: vinger of muis volgen, tik lanceert
+function aim(e){paddle&&(paddle.x=(e.clientX-fx)/S);}
+$('wrap').addEventListener('pointerdown',e=>{
+  if(state!=='play'||e.target.closest('.overlay,.home'))return;
+  e.preventDefault();aim(e);launch();
+});
+$('wrap').addEventListener('pointermove',e=>{
+  if(state!=='play'||e.target.closest('.overlay'))return;
+  if(e.pointerType==='mouse'||e.buttons||e.pressure>0)aim(e);
+});
+addEventListener('keydown',e=>{
+  if(state!=='play')return;
+  if(e.code==='ArrowLeft'||e.code==='KeyA'){keyDir=-1;e.preventDefault();}
+  if(e.code==='ArrowRight'||e.code==='KeyD'){keyDir=1;e.preventDefault();}
+  if(e.code==='Space'||e.code==='ArrowUp'){launch();e.preventDefault();}
+});
+addEventListener('keyup',e=>{
+  if((e.code==='ArrowLeft'||e.code==='KeyA')&&keyDir<0)keyDir=0;
+  if((e.code==='ArrowRight'||e.code==='KeyD')&&keyDir>0)keyDir=0;
+});
+
+/* --- tekenen --- */
+function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y,w,h,r):ctx.rect(x,y,w,h);ctx.fill();}
+const DROP={breed:['#7bd88f','↔'],multi:['#6cb6ff','3'],leven:['#ff7a7a','♥']};
+
+function draw(t){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#141a2e';ctx.fillRect(0,0,W,H);
+  ctx.setTransform(dpr*S,0,0,dpr*S,dpr*fx,dpr*fy);
+  ctx.fillStyle='#10162a';ctx.fillRect(0,0,FW,FH);
+  ctx.strokeStyle='#2f3860';ctx.lineWidth=2/S;ctx.strokeRect(0,0,FW,FH);
+  if(!paddle)return;
+
+  for(const k of bricks){
+    if(!k.alive)continue;
+    if(k.steel){
+      ctx.fillStyle='#5b6380';rr(k.x,k.y,k.w,k.h,2);
+      ctx.fillStyle='#8a92b0';ctx.fillRect(k.x+2,k.y+2,k.w-4,3);
+      ctx.fillStyle='#3d4460';ctx.fillRect(k.x+4,k.y+k.h-5,3,3);ctx.fillRect(k.x+k.w-7,k.y+k.h-5,3,3);
+      continue;
+    }
+    const l=48+k.hp*7;
+    ctx.fillStyle=`hsl(${k.hue},65%,${l}%)`;rr(k.x,k.y,k.w,k.h,2);
+    ctx.fillStyle=`hsl(${k.hue},75%,${l+14}%)`;ctx.fillRect(k.x+1,k.y+1,k.w-2,3);
+    // stevige stenen krijgen streepjes
+    ctx.fillStyle='rgba(11,15,29,0.45)';
+    for(let i=1;i<k.hp;i++)ctx.fillRect(k.x+k.w/2-9+(i-1)*12,k.y+k.h/2-1,6,3);
+  }
+  for(const p of parts){
+    ctx.globalAlpha=Math.max(0,p.t/0.6);ctx.fillStyle=`hsl(${p.hue},70%,65%)`;ctx.fillRect(p.x-2,p.y-2,4,4);
+  }
+  ctx.globalAlpha=1;
+  ctx.font='600 11px Outfit, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const d of drops){
+    const [col,ch]=DROP[d.type];
+    ctx.fillStyle=col;rr(d.x-14,d.y-7,28,14,7);
+    ctx.fillStyle='#0b0f1d';ctx.fillText(ch,d.x,d.y+0.5);
+  }
+  ctx.fillStyle=paddle.wideT>0?'#7bd88f':'#ffb347';
+  rr(paddle.x-paddle.w/2,paddle.y,paddle.w,paddle.h,6);
+  ctx.fillStyle='rgba(255,255,255,0.35)';ctx.fillRect(paddle.x-paddle.w/2+6,paddle.y+2,paddle.w-12,2);
+  ctx.fillStyle='#f4f0e6';
+  for(const b of balls){ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();}
+
+  if(banner>0&&state==='play'){
+    ctx.globalAlpha=Math.min(1,banner*2);
+    ctx.fillStyle='#f4f0e6';ctx.font='400 40px Bungee, Impact, sans-serif';
+    ctx.fillText('Level '+level,FW/2,FH*0.55);
+    ctx.globalAlpha=1;
+  }
+  if(state==='play'&&balls.some(b=>b.stuck)){
+    ctx.fillStyle='#9097b5';ctx.font='400 15px Outfit, system-ui, sans-serif';
+    ctx.fillText('Tik om te lanceren',FW/2,FH*0.55+36);
+  }
+}
+
+let last=performance.now();
+function frame(t){
+  const dt=Math.min((t-last)/1000,0.033);last=t;
+  if(state==='play')update(dt);
+  for(const p of parts){p.vy+=500*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.t-=dt;}
+  parts=(parts||[]).filter(p=>p.t>0);
+  draw(t);
+  requestAnimationFrame(frame);
+}
+reset();state='start';requestAnimationFrame(frame);
+</script>
+
+</body></html>

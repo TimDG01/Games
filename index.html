@@ -144,6 +144,23 @@ const GAMES = [
         <circle cx="51" cy="63" r="4" fill="#0b0f1d"/><circle cx="51" cy="63" r="2" fill="#ffb347"/>
       </g>`
   },
+  {
+    title: 'Breakout',
+    href: 'games/breakout/',
+    description: 'Kaats de bal tegen de stenen en breek ze allemaal. Elk level is nieuw en willekeurig, en het wordt steeds moeilijker.',
+    tag: 'Arcade',
+    bestKey: 'breakout-best',
+    bestLabel: n => n + ' punten',
+    thumb: `
+      <rect width="160" height="90" fill="#10162a"/>
+      <g fill="hsl(330,65%,62%)"><rect x="22" y="12" width="20" height="8" rx="1"/><rect x="44" y="12" width="20" height="8" rx="1"/><rect x="96" y="12" width="20" height="8" rx="1"/><rect x="118" y="12" width="20" height="8" rx="1"/></g>
+      <g fill="hsl(344,65%,62%)"><rect x="22" y="22" width="20" height="8" rx="1"/><rect x="44" y="22" width="20" height="8" rx="1"/><rect x="66" y="22" width="28" height="8" rx="1" fill="#5b6380"/><rect x="96" y="22" width="20" height="8" rx="1"/><rect x="118" y="22" width="20" height="8" rx="1"/></g>
+      <g fill="hsl(358,65%,62%)"><rect x="44" y="32" width="20" height="8" rx="1"/><rect x="66" y="32" width="28" height="8" rx="1"/><rect x="96" y="32" width="20" height="8" rx="1"/></g>
+      <rect x="40" y="56" width="14" height="7" rx="3.5" fill="#6cb6ff"/>
+      <circle cx="98" cy="58" r="3.5" fill="#f4f0e6"/>
+      <path d="M98 58 L84 74" stroke="#f4f0e6" stroke-opacity=".25" stroke-width="2" stroke-dasharray="2 3"/>
+      <rect x="66" y="76" width="34" height="6" rx="3" fill="#ffb347"/>`
+  },
 ];
 
 function readBest(key){
