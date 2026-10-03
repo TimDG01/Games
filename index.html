@@ -59,7 +59,7 @@ footer{max-width:960px;width:100%;margin:40px auto 0;color:var(--muted);font-siz
 </main>
 <footer>Versie <span id="version"></span></footer>
 
-<script src="version.js?v=2.4"></script>
+<script src="version.js?v=2.5"></script>
 <script>
 document.getElementById('version').textContent = SITE_VERSION;
 /*
@@ -160,6 +160,30 @@ const GAMES = [
       <circle cx="98" cy="58" r="3.5" fill="#f4f0e6"/>
       <path d="M98 58 L84 74" stroke="#f4f0e6" stroke-opacity=".25" stroke-width="2" stroke-dasharray="2 3"/>
       <rect x="66" y="76" width="34" height="6" rx="3" fill="#ffb347"/>`
+  },
+  {
+    title: 'Memory',
+    href: 'games/memory/',
+    description: 'Draai kaarten om en zoek de paren. Hoe minder beurten, hoe beter. Drie moeilijkheden.',
+    tag: 'Geheugen',
+    bestKey: 'memory-best-makkelijk',
+    bestLabel: n => n + ' beurten (makkelijk)',
+    thumb: `
+      <rect width="160" height="90" fill="#10162a"/>
+      <g transform="translate(26 13)">
+        <rect x="0" y="0" width="22" height="28" rx="4" fill="#2a3358"/>
+        <rect x="28" y="0" width="22" height="28" rx="4" fill="#f4f0e6"/>
+        <rect x="56" y="0" width="22" height="28" rx="4" fill="#2a3358"/>
+        <rect x="84" y="0" width="22" height="28" rx="4" fill="#e9f7ec" stroke="#7bd88f" stroke-width="2"/>
+        <rect x="0" y="36" width="22" height="28" rx="4" fill="#e9f7ec" stroke="#7bd88f" stroke-width="2"/>
+        <rect x="28" y="36" width="22" height="28" rx="4" fill="#2a3358"/>
+        <rect x="56" y="36" width="22" height="28" rx="4" fill="#2a3358"/>
+        <rect x="84" y="36" width="22" height="28" rx="4" fill="#2a3358"/>
+        <g fill="none" stroke="#3a4574" stroke-width="2"><circle cx="11" cy="14" r="5"/><circle cx="67" cy="14" r="5"/><circle cx="39" cy="50" r="5"/><circle cx="67" cy="50" r="5"/><circle cx="95" cy="50" r="5"/></g>
+        <g font-size="15" text-anchor="middle" font-family="Apple Color Emoji,Segoe UI Emoji,Noto Color Emoji,sans-serif">
+          <text x="39" y="20">🦊</text><text x="95" y="20">🐼</text><text x="11" y="56">🐼</text>
+        </g>
+      </g>`
   },
 ];
 
