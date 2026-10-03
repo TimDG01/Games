@@ -42,6 +42,8 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 .home{width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
 .home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
 .restart{width:40px;height:40px;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);border:0;font-size:20px;cursor:pointer;padding:0}
+/* de terugknop blijft boven de pop-ups, zodat je altijd naar het overzicht kunt */
+.home{position:relative;z-index:5}
 .overlay{position:fixed;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62)}
 .overlay[hidden]{display:none}
 .panel{background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:28px 24px;max-width:320px;width:100%;text-align:center;
@@ -97,7 +99,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=3.5"></script>
+<script src="../../version.js?v=3.6"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
