@@ -37,6 +37,8 @@ canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
 .points{display:grid;grid-template-columns:auto auto;justify-content:center;gap:6px 12px;align-items:center;font-size:14px;color:var(--muted)}
 .points canvas{position:static;width:auto;height:auto;justify-self:center}
 .points span{text-align:left}
+.legend{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 12px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-grid;place-items:center;width:20px;height:14px;border-radius:7px;margin-right:4px;font-style:normal;font-size:10px;font-weight:600;color:#0b0f1d;vertical-align:-2px}
 button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
   padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
 button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
@@ -59,6 +61,13 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
       <h1>Alien Invasie</h1>
       <p>Houd je vinger op het scherm: je schip volgt je vinger en schiet vanzelf. Op de computer: pijltjes en spatie. Schiet alle aliens neer voor ze beneden zijn.</p>
       <div class="points" id="points"></div>
+      <div class="legend">
+        <span><i style="background:#6cb6ff">3</i>Driedubbel</span>
+        <span><i style="background:#ffe066">&#187;</i>Snelvuur</span>
+        <span><i style="background:#4fd1c5">&#9711;</i>Schild</span>
+        <span><i style="background:#7bd88f">&#9638;</i>Herstel</span>
+        <span><i style="background:#ff7a7a">&#9829;</i>Leven</span>
+      </div>
       <p id="bestline">Record 0</p>
       <button id="go">Start</button>
       <div class="ver">Versie <span id="ver"></span></div>
@@ -75,7 +84,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=2.6"></script>
+<script src="../../version.js?v=2.7"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -124,7 +133,7 @@ const COLS=8, CW=36, CH=30;
 let best=0; try{best=+localStorage.getItem('invasie-best')||0}catch(e){}
 $('bestline').textContent='Record '+best;
 
-let state='start',score,lives,wave,aliens,dir,stepT,frame,shots,bombs,ufo,ufoT,player,shields,parts,banner,fireCd,deadT,nextLife;
+let drops=[],spreadT=0,rapidT=0,bubble=false,flash=null,state='start',score,lives,wave,aliens,dir,stepT,frame,shots,bombs,ufo,ufoT,player,shields,parts,banner,fireCd,deadT,nextLife;
 let stepN=0,holding=false,keyDir=0,keyFire=false;
 const rnd=Math.random, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
@@ -177,11 +186,11 @@ function newWave(){
   const startY=78+Math.min(wave-1,6)*12, startX=(FW-COLS*CW)/2;
   ROWS.forEach(([kind,col,pts],r)=>{for(let c=0;c<COLS;c++)
     aliens.push({kind,col,pts,c,x:startX+c*CW+(CW-SP[kind].w)/2,y:startY+r*CH,w:SP[kind].w,h:SP[kind].h,alive:true});});
-  dir=1;stepT=0;frame=0;shots=[];bombs=[];ufo=null;ufoT=14+rnd()*10;shields=makeShields();banner=1.6;
+  dir=1;stepT=0;frame=0;shots=[];bombs=[];drops=[];ufo=null;ufoT=14+rnd()*10;shields=makeShields();banner=1.6;
   $('wave').textContent=wave;
 }
 function reset(){
-  score=0;lives=3;wave=1;parts=[];fireCd=0;deadT=0;nextLife=2000;
+  score=0;lives=3;wave=1;parts=[];fireCd=0;deadT=0;nextLife=2000;spreadT=0;rapidT=0;bubble=false;flash=null;
   player={x:FW/2,y:FH-40,w:SP.schip.w,h:SP.schip.h};
   $('score').textContent=0;showLives();newWave();
 }
@@ -195,6 +204,9 @@ function boom(x,y,col,n=12){for(let i=0;i<n;i++)parts.push({x,y,vx:(rnd()-0.5)*1
 const BASS=[98,92,87,82];
 function update(dt){
   if(banner>0)banner-=dt;
+  if(spreadT>0)spreadT-=dt;
+  if(rapidT>0)rapidT-=dt;
+  if(flash&&(flash.t-=dt)<=0)flash=null;
   const live=aliens.filter(a=>a.alive);
 
   // speler
@@ -203,8 +215,11 @@ function update(dt){
     if(keyDir)player.x+=keyDir*240*dt;
     player.x=clamp(player.x,player.w/2+4,FW-player.w/2-4);
     fireCd-=dt;
-    if((holding||keyFire)&&fireCd<=0&&shots.length<2){
-      shots.push({x:player.x,y:player.y-4});fireCd=0.32;beep(880,0.05,'square',0.03);
+    const maxShots=(rapidT>0?6:2)*(spreadT>0?3:1);
+    if((holding||keyFire)&&fireCd<=0&&shots.length<maxShots){
+      if(spreadT>0)for(const vx of[-110,0,110])shots.push({x:player.x,y:player.y-4,vx});
+      else shots.push({x:player.x,y:player.y-4,vx:0});
+      fireCd=rapidT>0?0.12:0.32;beep(880,0.05,'square',0.03);
     }
   }
 
@@ -234,11 +249,11 @@ function update(dt){
 
   // eigen schoten
   for(const s of shots){
-    s.y-=560*dt;
-    if(s.y<0){s.done=true;continue;}
+    s.y-=560*dt;s.x+=s.vx*dt;
+    if(s.y<0||s.x<0||s.x>FW){s.done=true;continue;}
     if(hitShield(s.x-1,s.y,2,8,true)){s.done=true;continue;}
     for(const a of live)if(a.alive&&s.x>=a.x&&s.x<=a.x+a.w&&s.y<=a.y+a.h&&s.y+8>=a.y){
-      a.alive=false;s.done=true;addScore(a.pts);boom(a.x+a.w/2,a.y+a.h/2,a.col);beep(220,0.12,'sawtooth',0.05);break;
+      a.alive=false;s.done=true;addScore(a.pts);boom(a.x+a.w/2,a.y+a.h/2,a.col);beep(220,0.12,'sawtooth',0.05);maybeDrop(a);break;
     }
     if(!s.done&&ufo&&s.x>=ufo.x&&s.x<=ufo.x+SP.ufo.w&&s.y<=ufo.y+SP.ufo.h&&s.y>=ufo.y){
       const pts=[50,100,150,300][Math.floor(rnd()*4)];addScore(pts);
@@ -262,6 +277,14 @@ function update(dt){
   }
   bombs=bombs.filter(b=>!b.done);
 
+  // bonuscapsules vallen naar beneden, vang ze met je schip
+  for(const d of drops){
+    d.y+=110*dt;
+    if(deadT<=0&&d.y+7>=player.y&&d.y-7<=player.y+player.h&&Math.abs(d.x-player.x)<=player.w/2+14){d.done=true;catchDrop(d);}
+    else if(d.y>FH)d.done=true;
+  }
+  drops=drops.filter(d=>!d.done);
+
   if(!live.length&&state==='play'){
     addScore(100*wave);wave++;
     [523,659,784].forEach((f,i)=>setTimeout(()=>beep(f,0.1,'triangle',0.08),i*90));
@@ -269,7 +292,26 @@ function update(dt){
   }
 }
 
+const DROP={drie:['#6cb6ff','3','Driedubbel!'],snel:['#ffe066','\u00bb','Snelvuur!'],schild:['#4fd1c5','\u25ef','Schild!'],
+  herstel:['#7bd88f','\u25a6','Schilden hersteld!'],leven:['#ff7a7a','\u2665','+1 leven']};
+function maybeDrop(a){
+  if(rnd()>=0.07)return;
+  const q=rnd(), type=q<0.3?'drie':q<0.6?'snel':q<0.8?'schild':q<0.93?'herstel':'leven';
+  drops.push({x:a.x+a.w/2,y:a.y+a.h,type});
+}
+function catchDrop(d){
+  beep(880,0.12,'sine',0.1);addScore(25);
+  if(d.type==='drie')spreadT=8;
+  else if(d.type==='snel')rapidT=8;
+  else if(d.type==='schild')bubble=true;
+  else if(d.type==='herstel')shields=makeShields();
+  else{lives=Math.min(lives+1,5);showLives();}
+  flash={text:DROP[d.type][2],col:DROP[d.type][0],x:player.x,t:1.2};
+}
+
 function playerHit(){
+  // schild-bel vangt één treffer op
+  if(bubble){bubble=false;boom(player.x,player.y+4,'#4fd1c5',16);beep(330,0.15,'triangle',0.08);return;}
   lives--;showLives();boom(player.x,player.y+6,'#7bd88f',24);beep(110,0.4,'sawtooth',0.08);
   bombs=[];deadT=1.2;
   if(lives<=0)end(false);
@@ -335,6 +377,23 @@ function draw(t){
   ctx.fillRect(0,FH-14,FW,2);
   ctx.fillStyle='#f4f0e6';
   for(const s of shots)ctx.fillRect(s.x-1,s.y,2,8);
+  ctx.font='600 11px Outfit, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const d of drops){
+    const [col,ch]=DROP[d.type];
+    ctx.fillStyle=col;ctx.beginPath();ctx.roundRect?ctx.roundRect(d.x-14,d.y-7,28,14,7):ctx.rect(d.x-14,d.y-7,28,14);ctx.fill();
+    ctx.fillStyle='#0b0f1d';ctx.fillText(ch,d.x,d.y+0.5);
+  }
+  if(bubble&&deadT<=0){
+    ctx.strokeStyle='rgba(79,209,197,'+(0.55+Math.sin(t/150)*0.25)+')';ctx.lineWidth=2;
+    ctx.beginPath();ctx.ellipse(player.x,player.y+7,player.w/2+8,14,0,0,Math.PI*2);ctx.stroke();
+  }
+  // balkjes die aftellen
+  if(spreadT>0){ctx.fillStyle='#6cb6ff';ctx.fillRect(FW/2-40,FH-10,80*Math.min(1,spreadT/8),3);}
+  if(rapidT>0){ctx.fillStyle='#ffe066';ctx.fillRect(FW/2-40,FH-5,80*Math.min(1,rapidT/8),3);}
+  if(flash){
+    ctx.globalAlpha=Math.min(1,flash.t*2);ctx.fillStyle=flash.col;ctx.font='400 16px Bungee, Impact, sans-serif';
+    ctx.fillText(flash.text,clamp(flash.x,80,FW-80),player.y-26-(1.2-flash.t)*30);ctx.globalAlpha=1;
+  }
   ctx.fillStyle='#ffb347';
   for(const b of bombs){const z=Math.floor(b.t*12)%2?1:-1;ctx.fillRect(b.x-1,b.y,2,3);ctx.fillRect(b.x-1+z,b.y+3,2,3);ctx.fillRect(b.x-1,b.y+6,2,3);}
   ctx.textAlign='center';ctx.textBaseline='middle';
