@@ -99,7 +99,7 @@ for (const g of GAMES) {
   const best = g.bestKey ? readBest(g.bestKey) : 0;
   const li = document.createElement('li');
   li.innerHTML = `
-    <a class="card" href="${g.href}">
+    <a class="card" href="${g.href}?v=${SITE_VERSION}">
       <svg class="thumb" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${g.thumb}</svg>
       <div class="body">
         <h2></h2>
