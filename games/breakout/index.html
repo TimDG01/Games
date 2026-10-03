@@ -61,6 +61,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
         <span><i style="background:#7bd88f">&#8596;</i>Breed</span>
         <span><i style="background:#6cb6ff">3</i>Ballen</span>
         <span><i style="background:#b48cff">&#187;</i>Snel</span>
+        <span><i style="background:#ffe066">&#8673;</i>Laser</span>
         <span><i style="background:#ff7a7a">&#9829;</i>Leven</span>
       </div>
       <p id="bestline">Record 0</p>
@@ -100,7 +101,7 @@ addEventListener('resize',resize);resize();
 let best=0; try{best=+localStorage.getItem('breakout-best')||0}catch(e){}
 $('bestline').textContent='Record '+best;
 
-let fastT=0,state='start',score,lives,level,bricks,balls,drops,parts,paddle,banner=0,keyDir=0;
+let fastT=0,laserT=0,shotT=0,shots=[],state='start',score,lives,level,bricks,balls,drops,parts,paddle,banner=0,keyDir=0;
 
 /* geluid: kleine piep, start pas na de eerste tik */
 let ac=null;
@@ -147,7 +148,7 @@ function makeLevel(L){
 
 function newBall(){return{x:paddle.x,y:paddle.y-7,vx:0,vy:0,r:6,stuck:true};}
 function startLevel(){
-  bricks=makeLevel(level);balls=[newBall()];drops=[];paddle.wideT=0;fastT=0;banner=1.6;
+  bricks=makeLevel(level);balls=[newBall()];drops=[];paddle.wideT=0;fastT=0;laserT=0;shots=[];banner=1.6;
   $('level').textContent=level;
 }
 function reset(){
@@ -173,7 +174,7 @@ function hitBrick(b){
   b.alive=false;addScore(10*b.max);beep(520+rnd()*200,0.06);
   for(let i=0;i<8;i++)parts.push({x:b.x+b.w/2,y:b.y+b.h/2,vx:(rnd()-0.5)*220,vy:(rnd()-0.7)*200,t:0.6,hue:b.hue});
   if(rnd()<0.12){
-    const q=rnd(), type=q<0.35?'breed':q<0.65?'multi':q<0.85?'snel':'leven';
+    const q=rnd(), type=q<0.28?'breed':q<0.52?'multi':q<0.68?'snel':q<0.85?'laser':'leven';
     drops.push({x:b.x+b.w/2,y:b.y+b.h/2,type});
   }
 }
@@ -182,6 +183,7 @@ function catchDrop(d){
   beep(880,0.12,'sine',0.1);addScore(25);
   if(d.type==='breed')paddle.wideT=12;
   else if(d.type==='snel')fastT=8;
+  else if(d.type==='laser'){laserT=6;shotT=0;}
   else if(d.type==='leven'){lives=Math.min(lives+1,6);showLives();}
   else{
     launch();
@@ -229,6 +231,20 @@ function update(dt){
   // snel-capsule: ballen lopen een tijdje 40% sneller
   if(fastT>0)fastT-=dt;
   const bt=dt*(fastT>0?1.4:1);
+  // laser-capsule: het plankje schiet vanzelf uit beide hoeken
+  if(laserT>0){
+    laserT-=dt;shotT-=dt;
+    if(shotT<=0){shotT=0.35;const o=paddle.w/2-6;shots.push({x:paddle.x-o,y:paddle.y-2},{x:paddle.x+o,y:paddle.y-2});beep(1200,0.03,'square',0.03);}
+  }
+  for(const sh of shots){
+    const n=Math.ceil(620*dt/6);
+    for(let i=0;i<n&&!sh.done;i++){
+      sh.y-=620*dt/n;
+      if(sh.y<0){sh.done=true;break;}
+      for(const k of bricks)if(k.alive&&sh.x>=k.x&&sh.x<=k.x+k.w&&sh.y>=k.y&&sh.y<=k.y+k.h){hitBrick(k);sh.done=true;break;}
+    }
+  }
+  shots=shots.filter(sh=>!sh.done);
   if(keyDir)paddle.x+=keyDir*520*dt;
   paddle.x=clamp(paddle.x,paddle.w/2,FW-paddle.w/2);
   if(banner>0)banner-=dt;
@@ -249,7 +265,7 @@ function update(dt){
   if(!balls.length){
     lives--;showLives();beep(140,0.3,'sawtooth',0.07);
     if(lives<=0)return end();
-    balls=[newBall()];drops=[];paddle.wideT=0;fastT=0;
+    balls=[newBall()];drops=[];paddle.wideT=0;fastT=0;laserT=0;shots=[];
   }
   if(bricks.every(k=>!k.alive||k.steel)){
     addScore(100*level);level++;
@@ -295,7 +311,7 @@ addEventListener('keyup',e=>{
 
 /* --- tekenen --- */
 function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y,w,h,r):ctx.rect(x,y,w,h);ctx.fill();}
-const DROP={breed:['#7bd88f','↔'],multi:['#6cb6ff','3'],snel:['#b48cff','»'],leven:['#ff7a7a','♥']};
+const DROP={breed:['#7bd88f','↔'],multi:['#6cb6ff','3'],snel:['#b48cff','»'],laser:['#ffe066','⇡'],leven:['#ff7a7a','♥']};
 
 function draw(t){
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -329,6 +345,12 @@ function draw(t){
     const [col,ch]=DROP[d.type];
     ctx.fillStyle=col;rr(d.x-14,d.y-7,28,14,7);
     ctx.fillStyle='#0b0f1d';ctx.fillText(ch,d.x,d.y+0.5);
+  }
+  ctx.fillStyle='#ffe066';
+  for(const sh of shots)ctx.fillRect(sh.x-1.5,sh.y-8,3,9);
+  if(laserT>0){ // kanonnetjes op het plankje
+    const o=paddle.w/2-6;
+    for(const sx of[paddle.x-o,paddle.x+o])ctx.fillRect(sx-3,paddle.y-6,6,7);
   }
   ctx.fillStyle=paddle.wideT>0?'#7bd88f':'#ffb347';
   rr(paddle.x-paddle.w/2,paddle.y,paddle.w,paddle.h,6);
