@@ -113,7 +113,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=4.9"></script>
+<script src="../../version.js?v=5.0"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -210,8 +210,8 @@ function levelSound(){
 
 let state='start',board,cur,next,held,canHold,bag,score,lines,level,startLvl,dropT,lockT,resets,clearing,parts=[];
 
-// zak-snelheid: seconden per rij, sneller per level
-const gravity=()=>Math.max(0.03,Math.pow(0.8-(level-1)*0.007,level-1));
+// zak-snelheid: seconden per rij, per level 10% sneller, zodat het rustig oploopt
+const gravity=()=>Math.max(0.05,Math.pow(0.9,level-1));
 
 // zak met alle zeven stenen, door elkaar: zo komt elke steen geregeld langs
 function take(){
