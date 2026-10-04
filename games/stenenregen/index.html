@@ -29,7 +29,7 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 .home{position:relative;z-index:5}
 .stage{flex:1;width:100%;min-height:0;position:relative;margin-top:8px}
 canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-.pad{flex:none;margin-top:10px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:420px}
+.pad{flex:none;margin-top:10px;display:grid;grid-template-columns:repeat(6,1fr);gap:8px;width:100%;max-width:460px}
 .pad button{height:58px;font-family:var(--body);font-weight:600;font-size:24px;line-height:1;color:var(--fg);background:#1d2440;
   border:2px solid #2f3860;border-radius:8px;padding:0;cursor:pointer;touch-action:none}
 .pad button.on{background:#2f3860}
@@ -74,14 +74,16 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
     <button data-k="right" aria-label="Naar rechts">&#9654;</button>
     <button data-k="down" aria-label="Sneller zakken">&#9660;</button>
     <button data-k="drop" aria-label="Laten vallen">&#10515;</button>
+    <button data-k="hold" aria-label="Opzij zetten of terugnemen">&#8644;</button>
   </div>
-  <div class="hint">&larr; &rarr; schuiven · &uarr; draaien · &darr; sneller · spatie laten vallen · P pauze</div>
+  <div class="hint">&larr; &rarr; schuiven · &uarr; draaien · &darr; sneller · spatie laten vallen · C opzij zetten · P pauze</div>
 
   <div class="overlay" id="start">
     <div class="panel">
       <h1>Stenenregen</h1>
       <p>Schuif en draai de vallende stenen. Een volle rij verdwijnt. Hoe meer rijen tegelijk, hoe meer punten. Elke 10 rijen gaat het sneller.</p>
       <p>Tik op het veld om te draaien, veeg om te schuiven, veeg snel omlaag om te laten vallen. Of gebruik de knoppen.</p>
+      <p>Past een steen niet? Zet hem opzij met &#8644; (of tik op het vakje OPZIJ) en neem de volgende. Later kun je hem terugnemen.</p>
       <p id="bestline">Record 0</p>
       <div class="pick" hidden>
         <button class="dn" aria-label="Lager level">&lsaquo;</button><b>Level 1</b><button class="up" aria-label="Hoger level">&rsaquo;</button>
@@ -111,7 +113,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=4.8"></script>
+<script src="../../version.js?v=4.9"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -206,7 +208,7 @@ function levelSound(){
   tune([[NOTE(55),0.52,0.4],[NOTE(64),0.52,0.4]],'triangle',0.06);
 }
 
-let state='start',board,cur,next,bag,score,lines,level,startLvl,dropT,lockT,resets,clearing,parts=[];
+let state='start',board,cur,next,held,canHold,bag,score,lines,level,startLvl,dropT,lockT,resets,clearing,parts=[];
 
 // zak-snelheid: seconden per rij, sneller per level
 const gravity=()=>Math.max(0.03,Math.pow(0.8-(level-1)*0.007,level-1));
@@ -216,8 +218,8 @@ function take(){
   if(!bag||!bag.length){bag=Object.keys(SHAPES);for(let i=bag.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[bag[i],bag[j]]=[bag[j],bag[i]];}}
   return bag.pop();
 }
-function spawn(){
-  const k=next||take();next=take();
+function spawn(k){
+  if(!k){k=next||take();next=take();}
   const m=SHAPES[k].m;
   cur={k,m,x:Math.floor((COLS-m.length)/2),y:k==='I'?-1:0};
   dropT=0;lockT=0;resets=0;
@@ -248,6 +250,14 @@ function turn(dir=1){
   for(const [dx,dy] of [[0,0],[-1,0],[1,0],[0,-1],[-2,0],[2,0],[-1,-1],[1,-1]]){
     if(!hits(m,cur.x+dx,cur.y+dy)){cur.m=m;cur.x+=dx;cur.y+=dy;moved();beep(520,0.04,'triangle',0.06);return;}
   }
+}
+// steen opzij zetten en de volgende nemen, of de opzijgezette terugnemen; één keer per steen
+function hold(){
+  if(state!=='play'||clearing||!cur||!canHold)return;
+  const k=cur.k, back=held;
+  held=k;canHold=false;
+  spawn(back);
+  beep(440,0.05,'triangle',0.06);setTimeout(()=>beep(620,0.05,'triangle',0.05),50);
 }
 function stepDown(points){
   if(hits(cur.m,cur.x,cur.y+1))return false;
@@ -285,7 +295,7 @@ function lock(){
     clearSound(n);
   }else{
     beep(160,0.05,'square',0.05);
-    spawn();
+    canHold=true;spawn();
   }
 }
 function finishClear(){
@@ -297,7 +307,7 @@ function finishClear(){
     if(level>unlocked){unlocked=level;try{localStorage.setItem('stenenregen-level',unlocked)}catch(e){}}
   }
   $('lines').textContent=lines;$('level').textContent=level;
-  spawn();
+  canHold=true;spawn();
 }
 let banner=0;
 
@@ -318,7 +328,7 @@ function update(dt){
 
 function reset(from=1){
   board=Array.from({length:ROWS},()=>Array(COLS).fill(null));
-  score=0;lines=0;startLvl=level=from;bag=null;next=null;clearing=null;banner=1.4;parts=[];
+  score=0;lines=0;startLvl=level=from;bag=null;next=null;held=null;canHold=true;clearing=null;banner=1.4;parts=[];
   $('score').textContent=0;$('lines').textContent=0;$('level').textContent=level;
   spawn();
 }
@@ -351,7 +361,7 @@ function down(){
   if(state!=='play'||clearing||!cur)return;
   if(stepDown(1)){dropT=0;beep(260,0.03,'square',0.03);}
 }
-const ACT={left:()=>move(-1),right:()=>move(1),down,rot:()=>turn(1),drop:hardDrop};
+const ACT={left:()=>move(-1),right:()=>move(1),down,rot:()=>turn(1),drop:hardDrop,hold};
 document.querySelectorAll('#pad button').forEach(b=>{
   const k=b.dataset.k;let t1=null,t2=null;
   const stop=()=>{clearTimeout(t1);clearInterval(t2);b.classList.remove('on');};
@@ -367,7 +377,11 @@ document.querySelectorAll('#pad button').forEach(b=>{
 let sw=null;
 cv.addEventListener('pointerdown',e=>{
   if(state!=='play')return;
-  e.preventDefault();cv.setPointerCapture(e.pointerId);
+  e.preventDefault();
+  // tik op het vakje OPZIJ: steen opzij zetten of terugnemen
+  const b=cv.getBoundingClientRect(), hb=holdBox(), px=e.clientX-b.left, py=e.clientY-b.top;
+  if(px>=hb.x&&px<=hb.x+hb.w&&py>=hb.y-cell*0.6&&py<=hb.y+hb.h){hold();return;}
+  cv.setPointerCapture(e.pointerId);
   sw={x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,t:performance.now(),moved:false,hist:[{y:e.clientY,t:performance.now()}]};
 });
 cv.addEventListener('pointermove',e=>{
@@ -407,6 +421,7 @@ addEventListener('keydown',e=>{
   else if(k==='KeyZ'){if(!e.repeat)turn(-1);}
   else if(k==='ArrowDown'||k==='KeyS')down();
   else if(k==='Space'){if(!e.repeat)hardDrop();}
+  else if(k==='KeyC'||k==='ShiftLeft'||k==='ShiftRight'){if(!e.repeat)hold();}
   else return;
   e.preventDefault();
 });
@@ -418,6 +433,20 @@ function block(x,y,col,s=cell){
   ctx.fillStyle=col;rr(x+p,y+p,s-2*p,s-2*p,s*0.12);
   ctx.fillStyle='rgba(255,255,255,0.32)';ctx.fillRect(x+p*2.5,y+p*2.5,s-p*5,Math.max(2,s*0.12));
   ctx.fillStyle='rgba(11,15,29,0.22)';ctx.fillRect(x+p*2.5,y+s-p*2.5-Math.max(2,s*0.1),s-p*5,Math.max(2,s*0.1));
+}
+
+// plaats van het vakje OPZIJ, rechts onder "volgende"
+function holdBox(){
+  const sx=bx+COLS*cell+cell*0.4+4;
+  return {x:sx,y:by+cell*1.3+side*0.8+cell*0.6,w:side-4,h:side*0.8};
+}
+// een steen mooi gecentreerd in een vakje
+function mini(k,x,y,w,h,col){
+  const m=SHAPES[k].m, s=cell*0.8;
+  let r0=9,r1=-1,c0=9,c1=-1;
+  m.forEach((row,r)=>row.forEach((v,c)=>{if(v){r0=Math.min(r0,r);r1=Math.max(r1,r);c0=Math.min(c0,c);c1=Math.max(c1,c);}}));
+  const ox=x+(w-(c1-c0+1)*s)/2, oy=y+(h-(r1-r0+1)*s)/2;
+  m.forEach((row,r)=>row.forEach((v,c)=>{if(v)block(ox+(c-c0)*s,oy+(r-r0)*s,col||SHAPES[k].col,s);}));
 }
 
 function draw(){
@@ -461,16 +490,17 @@ function draw(){
   ctx.textAlign='left';ctx.textBaseline='top';
   ctx.fillText('VOLGENDE',sx,by);
   ctx.fillStyle='#1d2440';rr(sx,by+cell*0.6,side-4,side*0.8,6);
-  if(next){
-    const m=SHAPES[next].m, s=cell*0.8;
-    let r0=9,r1=-1,c0=9,c1=-1;
-    m.forEach((row,r)=>row.forEach((v,c)=>{if(v){r0=Math.min(r0,r);r1=Math.max(r1,r);c0=Math.min(c0,c);c1=Math.max(c1,c);}}));
-    const ox=sx+(side-4-(c1-c0+1)*s)/2, oy=by+cell*0.6+(side*0.8-(r1-r0+1)*s)/2;
-    m.forEach((row,r)=>row.forEach((v,c)=>{if(v)block(ox+(c-c0)*s,oy+(r-r0)*s,SHAPES[next].col,s);}));
-  }
-  ctx.fillStyle='#9097b5';ctx.fillText('RECORD',sx,by+cell*0.9+side*0.8);
+  if(next)mini(next,sx,by+cell*0.6,side-4,side*0.8);
+  // opzijgezette steen; grijs zolang je hem niet mag wisselen
+  const hb=holdBox();
+  ctx.fillStyle='#9097b5';ctx.fillText('OPZIJ',sx,hb.y-cell*0.6);
+  ctx.fillStyle='#1d2440';rr(hb.x,hb.y,hb.w,hb.h,6);
+  if(held)mini(held,hb.x,hb.y,hb.w,hb.h,canHold?null:'#4a5175');
+  else{ctx.fillStyle='#2f3860';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('leeg',hb.x+hb.w/2,hb.y+hb.h/2);ctx.textAlign='left';ctx.textBaseline='top';}
+  const ry=hb.y+hb.h+cell*0.3;
+  ctx.fillStyle='#9097b5';ctx.fillText('RECORD',sx,ry);
   ctx.fillStyle='#f4f0e6';ctx.font=`400 ${Math.max(12,cell*0.55)}px Bungee, Impact, sans-serif`;
-  ctx.fillText(Math.max(best,score),sx,by+cell*1.5+side*0.8);
+  ctx.fillText(Math.max(best,score),sx,ry+cell*0.6);
 
   if(banner>0&&state==='play'){
     ctx.globalAlpha=Math.min(1,banner*2);
