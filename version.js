@@ -1,5 +1,5 @@
 // Versie van de site. Verhoog met tools/bump-version.sh, dat ook de verwijzingen in alle pagina's bijwerkt.
-const SITE_VERSION = '4.7';
+const SITE_VERSION = '4.8';
 
 // Staat er online al een nieuwere versie? Dan meteen de verse pagina laden, één keer per versie.
 (function(){
@@ -19,20 +19,43 @@ const SITE_VERSION = '4.7';
 // Geen zoom bij dubbel tikken. iPhones negeren user-scalable=no, en touch-action: manipulation is niet altijd genoeg.
 // Daarom: komt er snel een tweede korte tik, dan annuleren we Safari's zoom en sturen we zelf de klik door,
 // zodat de tik gewoon blijft tellen. Vegen en scrollen tellen niet als tik.
+// In de games gaan we verder: daar houden we elke aanraking tegen, zodat Safari nooit een vergrootglas, selectie,
+// menu of zoom toont bij lang drukken of snel tikken. Pointer-events (waar de games op spelen) komen gewoon door;
+// alleen de klik zou wegvallen, dus die sturen we na een korte tik zelf door. Formuliervelden blijven zoals ze zijn.
 (function(){
   try{
+    const inGame=/\/games\//.test(location.pathname);
     const st=document.createElement('style');
-    st.textContent='html,body,*{touch-action:manipulation}';
+    st.textContent='html,body,*{touch-action:manipulation}'+
+      (inGame?'*{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}':'');
     document.head.prepend(st);
     let lastTap=0, start=null;
+    const isTap=(t,e)=>Math.hypot(t.clientX-start.x,t.clientY-start.y)<12&&e.timeStamp-start.time<(inGame?1500:500);
+    if(inGame){
+      const native=el=>el.closest&&el.closest('input,select,textarea,label');
+      document.addEventListener('touchstart',e=>{
+        const t=e.touches[0];
+        start=e.touches.length===1&&!native(e.target)?{x:t.clientX,y:t.clientY,time:e.timeStamp,el:e.target}:null;
+        if(!native(e.target)&&e.cancelable)e.preventDefault();
+      },{passive:false});
+      document.addEventListener('touchend',e=>{
+        if(!start||e.touches.length)return;
+        const t=e.changedTouches[0], el=start.el;
+        if(isTap(t,e)&&el.isConnected)el.click();
+        start=null;
+      },{passive:false});
+      document.addEventListener('touchcancel',()=>{start=null;});
+      // knijpen om te zoomen tegenhouden (Safari)
+      for(const ev of['gesturestart','gesturechange'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
+      return;
+    }
     document.addEventListener('touchstart',e=>{
       const t=e.touches[0];start=e.touches.length===1?{x:t.clientX,y:t.clientY,time:e.timeStamp}:null;
     },{passive:true});
     document.addEventListener('touchend',e=>{
       if(!start||e.touches.length)return;
       const t=e.changedTouches[0];
-      const isTap=Math.hypot(t.clientX-start.x,t.clientY-start.y)<12&&e.timeStamp-start.time<500;
-      if(!isTap){start=null;return;}
+      if(!isTap(t,e)){start=null;return;}
       if(e.timeStamp-lastTap<350&&e.cancelable){
         e.preventDefault();
         const el=document.elementFromPoint(t.clientX,t.clientY);
@@ -40,9 +63,6 @@ const SITE_VERSION = '4.7';
       }
       lastTap=e.timeStamp;start=null;
     },{passive:false});
-    // in de games ook knijpen om te zoomen tegenhouden (Safari)
-    if(/\/games\//.test(location.pathname))
-      for(const ev of['gesturestart','gesturechange'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
   }catch(e){}
 })();
 

@@ -29,6 +29,9 @@ Een nieuwe game laadt `version.js` dus met `<script src="../../version.js?v=…"
 
 `version.js` zet ook dubbeltik-zoom uit, omdat iPhones `user-scalable=no` negeren: een snelle tweede tik annuleert
 Safari's zoom en stuurt zelf de klik door, zodat de tik gewoon telt. In de games is ook knijp-zoom geblokkeerd.
+In de games houdt `version.js` bovendien elke aanraking tegen, zodat Safari nooit een vergrootglas, selectie of menu
+toont bij lang drukken of snel tikken. Pointer-events komen gewoon door; de klik stuurt `version.js` na een korte tik
+zelf door, dus knoppen en `click`-handlers blijven werken. Formuliervelden (`input`, `label`, ...) blijven ongemoeid.
 Elke pagina die `version.js` laadt, krijgt dat vanzelf.
 
 Geluid: `version.js` zet een knop "Geluid aan/uit" op het start- en eindscherm (`.overlay .panel`) van elke game,
