@@ -111,7 +111,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=4.5"></script>
+<script src="../../version.js?v=4.6"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -173,6 +173,37 @@ function beep(f,d=0.07,type='triangle',v=0.1){
     const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
     g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+d);
     o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d);}catch(e){}
+}
+
+// een melodietje: noten [frequentie, start in s, duur in s], netjes op de klok van de geluidskaart
+function tune(notes,type='triangle',v=0.09){
+  if(window.SITE_SOUND&&!SITE_SOUND.on)return;
+  try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)();
+    const t0=ac.currentTime+0.01;
+    for(const [f,at,d] of notes){
+      const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t0+at);g.gain.linearRampToValueAtTime(v,t0+at+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+at+d);
+      o.connect(g).connect(ac.destination);o.start(t0+at);o.stop(t0+at+d+0.02);
+    }}catch(e){}
+}
+const NOTE=n=>440*Math.pow(2,(n-69)/12);   // midi-nummer naar frequentie
+// rij weg: een vrolijk loopje omhoog, hoe meer rijen hoe langer en hoger, met fonkeltjes erbovenop
+function clearSound(n){
+  const steps=[60,64,67,72,76,79,84].slice(0,2+n);
+  tune(steps.map((m,i)=>[NOTE(m),i*0.06,0.16]),'triangle',0.1);
+  tune(steps.map((m,i)=>[NOTE(m+12),i*0.06+0.03,0.1]),'sine',0.04);
+  if(n===4){
+    // vier rijen tegelijk: een feestelijk slotakkoord
+    const t=steps.length*0.06;
+    tune([[NOTE(72),t,0.5],[NOTE(76),t,0.5],[NOTE(79),t,0.5],[NOTE(84),t+0.12,0.6]],'square',0.035);
+    tune([[NOTE(91),t+0.1,0.15],[NOTE(96),t+0.2,0.15],[NOTE(91),t+0.3,0.15],[NOTE(100),t+0.4,0.3]],'sine',0.05);
+  }
+}
+// een level hoger: kort trompetje
+function levelSound(){
+  tune([[NOTE(67),0,0.12],[NOTE(67),0.13,0.08],[NOTE(72),0.24,0.12],[NOTE(76),0.38,0.12],[NOTE(79),0.52,0.4]],'square',0.04);
+  tune([[NOTE(55),0.52,0.4],[NOTE(64),0.52,0.4]],'triangle',0.06);
 }
 
 let state='start',board,cur,next,bag,score,lines,level,startLvl,dropT,lockT,resets,clearing,parts=[];
@@ -251,8 +282,7 @@ function lock(){
       for(let i=0;i<2;i++)parts.push({x:c+0.5,y:r+0.5,vx:(Math.random()-0.5)*8,vy:-Math.random()*6,t:0.7,col:board[r][c]});
     const n=full.length;
     addScore([0,100,300,500,800][n]*level);
-    if(n===4)[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.1),i*80));
-    else beep(600+n*120,0.12,'triangle',0.1);
+    clearSound(n);
   }else{
     beep(160,0.05,'square',0.05);
     spawn();
@@ -263,7 +293,7 @@ function finishClear(){
   lines+=clearing.rows.length;clearing=null;
   const L=startLvl+Math.floor(lines/10);
   if(L>level){
-    level=L;banner=1.4;
+    level=L;banner=1.4;setTimeout(levelSound,150);
     if(level>unlocked){unlocked=level;try{localStorage.setItem('stenenregen-level',unlocked)}catch(e){}}
   }
   $('lines').textContent=lines;$('level').textContent=level;
