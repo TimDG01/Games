@@ -88,7 +88,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=5.2"></script>
+<script src="../../version.js?v=5.3"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -120,7 +120,7 @@ function beep(f,d=0.07,type='square',v=0.05,slide){
 
 /* bonuscapsules: kleur, teken, naam op het scherm, uitleg op het startscherm */
 const BONUS={
-  schild:['#4fd1c5','◯','Schild!','Schild over je steden'],
+  schild:['#4fd1c5','◯','Schild!','Schild (2× = grote koepel)'],
   bom:['#ffb347','✸','Grote bom klaar!','Grote bom'],
   mega:['#ff7a7a','+','Mega-knal!','Grotere ontploffingen'],
   snel:['#ffe066','»','Snelle raketten!','Snellere raketten'],
@@ -142,7 +142,7 @@ $('bestline').textContent='Record '+best;
 
 const BASE_X=[28,200,372], CITY_X=[76,116,156,244,284,324], AMMO=10;
 let state='start',score,wave,cities,bases,enemies,planes,missiles,blasts,caps,parts,flash,banner,bannerText,bannerSub;
-let toSpawn,spawnT,planeT,capT,capLeft,tally,nextCity,pendingCity,bigBomb,megaT,fastT,freezeT;
+let toSpawn,spawnT,planeT,capT,capLeft,tally,nextCity,pendingCity,bigBomb,megaT,fastT,freezeT,domeT;
 let cross={x:FW/2,y:300,show:false}, keyX=0, keyY=0;
 
 function reset(){
@@ -155,7 +155,7 @@ function newWave(){
   // verdiende extra steden terugzetten
   while(pendingCity>0&&cities.some(c=>!c.alive)){cities.find(c=>!c.alive).alive=true;pendingCity--;}
   enemies=[];planes=[];missiles=[];blasts=[];caps=[];tally=0;
-  bigBomb=false;megaT=0;fastT=0;freezeT=0;
+  bigBomb=false;megaT=0;fastT=0;freezeT=0;domeT=0;
   toSpawn=10+wave*2;spawnT=1.8;planeT=6+rnd()*6;
   capLeft=Math.min(2+Math.floor(wave/3),4);capT=4+rnd()*6;
   banner=1.8;bannerText='Golf '+wave;bannerSub=wave===1?'Verdedig je steden!':'×'+mult()+' bonus';
@@ -221,10 +221,15 @@ function bang(x,y,big){
   blasts.push({x,y,r:0,max,t:0,own:true,big});
   beep(big?60:140,big?0.7:0.25,'sawtooth',big?0.1:0.05,40);
 }
+// de grote koepel: een halve ellips over de hele grond, raketten ontploffen ertegen
+const DOME_TIME=12, DOME_RX=FW/2+12, DOME_RY=130;
+const inDome=(x,y)=>((x-FW/2)/DOME_RX)**2+((y-GROUND)/DOME_RY)**2<1;
 function catchCap(c){
   c.dead=true;addScore(50);beep(880,0.12,'sine',0.1);setTimeout(()=>beep(1175,0.12,'sine',0.08),90);
   const k=c.type;
-  if(k==='schild')for(const s of cities)if(s.alive)s.shield=true;
+  // tweede schild terwijl er nog een staat (of de koepel er al is): een grote koepel over alles
+  const dome=k==='schild'&&(domeT>0||cities.some(s=>s.alive&&s.shield));
+  if(k==='schild'){for(const s of cities)if(s.alive)s.shield=true;if(dome){domeT=DOME_TIME;beep(523,0.4,'triangle',0.08,1047);}}
   if(k==='bom')bigBomb=true;
   if(k==='mega')megaT=10;
   if(k==='snel')fastT=10;
@@ -236,12 +241,13 @@ function catchCap(c){
     for(const p of planes)if(!p.dead){p.dead=true;addScore(100);boom(p.x,p.y,'#ff7a7a',16);}
     beep(70,0.6,'sawtooth',0.1,30);
   }
-  flash={text:BONUS[k][2],col:BONUS[k][0],t:1.4};
+  flash={text:dome?'Grote koepel!':BONUS[k][2],col:BONUS[k][0],t:1.4};
 }
 
 function update(dt){
   if(banner>0)banner-=dt;
   if(megaT>0)megaT-=dt;
+  if(domeT>0)domeT-=dt;
   if(fastT>0)fastT-=dt;
   if(freezeT>0)freezeT-=dt;
   const frozen=freezeT>0;
@@ -289,7 +295,11 @@ function update(dt){
       for(let i=0;i<n;i++){launchEnemy(e.x,e.y,false);}
       beep(500,0.06,'square',0.03);
     }
-    if(e.y>=e.ty)impact(e);
+    if(domeT>0&&inDome(e.x,e.y)){
+      e.dead=true;addScore(e.smart?125:25);
+      blasts.push({x:e.x,y:e.y,r:0,max:16,t:0,own:false});boom(e.x,e.y,'#4fd1c5',8);beep(400,0.12,'triangle',0.05,200);
+    }
+    else if(e.y>=e.ty)impact(e);
   }
   for(const p of planes){
     if(p.dead||frozen)continue;
@@ -426,6 +436,12 @@ function draw(t){
   ctx.fillStyle='#3a4470';ctx.fillRect(0,GROUND,FW,2);
   if(!cities)return ctx.restore();
 
+  // grote koepel, knippert als hij bijna op is
+  if(domeT>0&&(domeT>3||Math.floor(t/150)%2)){
+    ctx.beginPath();ctx.ellipse(FW/2,GROUND,DOME_RX,DOME_RY,0,Math.PI,0);
+    ctx.fillStyle='rgba(79,209,197,.08)';ctx.fill();
+    ctx.strokeStyle='rgba(79,209,197,'+(0.6+Math.sin(t/160)*0.25)+')';ctx.lineWidth=2.5;ctx.stroke();
+  }
   for(const c of cities)drawCity(c,t);
   for(const b of bases)drawBase(b);
 
@@ -484,10 +500,12 @@ function draw(t){
   }
   // balkjes die aftellen, onder in de grond
   const bars=[];
+  if(domeT>0)bars.push(['#4fd1c5',domeT/DOME_TIME]);
   if(megaT>0)bars.push(['#ff7a7a',megaT/10]);
   if(fastT>0)bars.push(['#ffe066',fastT/10]);
   if(freezeT>0)bars.push(['#a8e6ff',freezeT/5]);
-  bars.forEach(([col,f],i)=>{ctx.fillStyle=col;ctx.fillRect(FW/2-130+i*90,FH-12,80*Math.min(1,f),4);});
+  const bx=FW/2-(bars.length*86-14)/2;
+  bars.forEach(([col,f],i)=>{ctx.fillStyle=col;ctx.fillRect(bx+i*86,FH-12,72*Math.min(1,f),4);});
   ctx.font='400 11px Outfit, system-ui, sans-serif';
   if(bigBomb){ctx.fillStyle='#ffb347';ctx.fillText('Grote bom klaar: tik om te gooien',FW/2,FH-28);}
   else if(state==='play'&&bases.every(b=>!b.alive||!b.ammo)&&(enemies.length||toSpawn)){ctx.fillStyle='#ff7a7a';ctx.fillText('Geen raketten meer',FW/2,FH-28);}
