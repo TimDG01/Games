@@ -12,7 +12,7 @@
   --x:#6cb6ff; --o:#ff7a7a;
   --display:'Bungee', Impact, 'Arial Black', sans-serif;
   --body:'Outfit', system-ui, -apple-system, sans-serif;
-  --cell:100px;
+  --cell:100px; --n:3; --gap:8px;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -29,8 +29,8 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 .stage{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;min-height:0}
 #msg{font-family:var(--display);font-size:20px;min-height:24px;text-align:center}
 #msg.x{color:var(--x)} #msg.o{color:var(--o)}
-#board{display:grid;grid-template-columns:repeat(3,var(--cell));gap:8px;touch-action:manipulation}
-.cell{width:var(--cell);height:var(--cell);border:0;padding:0;border-radius:8px;background:#2a3358;cursor:pointer;
+#board{display:grid;grid-template-columns:repeat(var(--n),var(--cell));gap:var(--gap);touch-action:manipulation}
+.cell{width:var(--cell);height:var(--cell);border:0;padding:0;border-radius:calc(var(--cell) * .09);background:#2a3358;cursor:pointer;
   box-shadow:inset 0 -4px 0 #1d2440, inset 0 2px 0 #36406a;display:grid;place-items:center}
 .cell:disabled{cursor:default}
 .cell:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
@@ -90,7 +90,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   <div class="overlay" id="start">
     <div class="panel">
       <h1>Boter, Kaas en Eieren</h1>
-      <p>Zet om de beurt een kruisje of een rondje. Wie het eerst drie op een rij heeft, wint: horizontaal, verticaal of schuin.</p>
+      <p>Zet om de beurt een kruisje of een rondje. Wie het eerst <span id="rule">drie</span> op een rij heeft, wint: horizontaal, verticaal of schuin.</p>
       <div class="levels" role="group" aria-label="Tegenstander">
         <button data-mode="cpu">Computer</button>
         <button data-mode="duo">Met z'n 2en</button>
@@ -100,18 +100,34 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
         <button data-level="normaal">Normaal</button>
         <button data-level="moeilijk">Moeilijk</button>
       </div>
+      <div class="levels" id="sizes" role="group" aria-label="Grootte van het veld">
+        <button data-size="3">3 × 3</button>
+        <button data-size="5">5 × 5</button>
+        <button data-size="7">7 × 7</button>
+      </div>
       <button id="go">Start</button>
       <div class="ver">Versie <span id="ver"></span></div>
     </div>
   </div>
 </div>
 
-<script src="../../version.js?v=5.8"></script>
+<script src="../../version.js?v=5.9"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
 
-const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+// met z'n tweeën kies je de grootte; hoe groter het veld, hoe langer de rij die je nodig hebt
+const SIZES={3:3,5:4,7:5};
+const WORDS={3:'drie',4:'vier',5:'vijf'};
+let N=3,K=3,LINES=[];
+function makeLines(){ // alle rijtjes van K vakjes op een veld van N×N
+  LINES=[];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++)for(const [dr,dc] of [[0,1],[1,0],[1,1],[1,-1]]){
+    const er=r+dr*(K-1), ec=c+dc*(K-1);
+    if(er<0||er>=N||ec<0||ec>=N)continue;
+    LINES.push([...Array(K)].map((_,k)=>(r+dr*k)*N+c+dc*k));
+  }
+}
 const LEVELS={makkelijk:'Makkelijk',normaal:'Normaal',moeilijk:'Moeilijk'};
 const MARK={
   X:'<svg viewBox="0 0 100 100" aria-hidden="true"><path class="mx" d="M18 18L82 82"/><path class="mx" d="M82 18L18 82"/></svg>',
@@ -120,11 +136,12 @@ const MARK={
 // record: zoveel keer op rij van de computer gewonnen, per moeilijkheid
 const bestKey=l=>'bke-best-'+l;
 
-let mode='cpu', level='normaal';
+let mode='cpu', level='normaal', size=3;
 try{const m=localStorage.getItem('bke-mode');if(m==='cpu'||m==='duo')mode=m;
-    const l=localStorage.getItem('bke-level');if(LEVELS[l])level=l;}catch(e){}
+    const l=localStorage.getItem('bke-level');if(LEVELS[l])level=l;
+    const z=+localStorage.getItem('bke-size');if(SIZES[z])size=z;}catch(e){}
 let board,turn,starter='X',state='start',score,streak=0,best=0,cpuTimer=null;
-const cells=[];
+let cells=[];
 
 function readBest(l){try{return +localStorage.getItem(bestKey(l))||0}catch(e){return 0}}
 function showBest(){
@@ -132,8 +149,15 @@ function showBest(){
 }
 function setMode(m){
   mode=m;try{localStorage.setItem('bke-mode',m)}catch(e){}
-  document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===m));
-  $('levels').hidden=m!=='cpu';
+  function showRule(){$('rule').textContent=WORDS[mode==='duo'?SIZES[size]:3];}
+function setSize(z){
+  size=z;try{localStorage.setItem('bke-size',z)}catch(e){}
+  document.querySelectorAll('[data-size]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.size===z));
+  showRule();
+}
+document.querySelectorAll('[data-size]').forEach(b=>b.addEventListener('click',()=>setSize(+b.dataset.size)));
+document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===m));
+  $('levels').hidden=m!=='cpu';$('sizes').hidden=m!=='duo';showRule();
   $('nx').textContent=m==='cpu'?'Jij':'Kruisje';$('no').textContent=m==='cpu'?'Computer':'Rondje';
   showBest();
 }
@@ -143,6 +167,13 @@ function setLevel(l){
   document.querySelectorAll('[data-level]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.level===l));
   showBest();
 }
+function showRule(){$('rule').textContent=WORDS[mode==='duo'?SIZES[size]:3];}
+function setSize(z){
+  size=z;try{localStorage.setItem('bke-size',z)}catch(e){}
+  document.querySelectorAll('[data-size]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.size===z));
+  showRule();
+}
+document.querySelectorAll('[data-size]').forEach(b=>b.addEventListener('click',()=>setSize(+b.dataset.size)));
 document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
 document.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',()=>setLevel(b.dataset.level)));
 
@@ -158,22 +189,28 @@ function beep(f,d=0.09,type='triangle',v=0.12){
 
 function fit(){
   const availW=Math.min(innerWidth-24,520), availH=innerHeight-160-$('wrap').querySelector('.top').offsetHeight;
-  const size=Math.floor(Math.min((availW-16)/3,(availH-16)/3,140));
-  document.documentElement.style.setProperty('--cell',Math.max(64,size)+'px');
+  const gap=N>5?5:N>3?6:8, st=document.documentElement.style;
+  const cell=Math.floor(Math.min((availW-gap*(N-1))/N,(availH-gap*(N-1))/N,140));
+  st.setProperty('--n',N);st.setProperty('--gap',gap+'px');st.setProperty('--cell',Math.max(32,cell)+'px');
 }
 addEventListener('resize',fit);
 
-for(let i=0;i<9;i++){
-  const c=document.createElement('button');c.className='cell';c.dataset.i=i;
-  $('board').appendChild(c);cells.push(c);
+function buildBoard(){
+  N=mode==='duo'?size:3;K=mode==='duo'?SIZES[size]:3;makeLines();
+  $('board').innerHTML='';cells=[];
+  for(let i=0;i<N*N;i++){
+    const c=document.createElement('button');c.className='cell';c.dataset.i=i;
+    $('board').appendChild(c);cells.push(c);
+  }
+  fit();
 }
 
 function winner(b){
-  for(const l of LINES)if(b[l[0]]&&b[l[0]]===b[l[1]]&&b[l[0]]===b[l[2]])return {who:b[l[0]],line:l};
+  for(const l of LINES)if(b[l[0]]&&l.every(i=>b[i]===b[l[0]]))return {who:b[l[0]],line:l};
   return b.every(Boolean)?{who:null,line:[]}:null;
 }
 
-/* computer is altijd rondje (O) */
+/* computer is altijd rondje (O), en speelt altijd op 3×3 */
 function minimax(b,me,depth){
   const w=winner(b);
   if(w)return w.who==='O'?10-depth:w.who==='X'?depth-10:0;
@@ -221,7 +258,7 @@ function showTurn(){
 
 function newRound(){
   clearTimeout(cpuTimer);
-  board=Array(9).fill('');turn=starter;state='play';
+  board=Array(N*N).fill('');turn=starter;state='play';
   for(const c of cells){c.innerHTML='';c.className='cell';c.disabled=false;c.setAttribute('aria-label','Leeg vakje');}
   $('next').classList.remove('show');
   showTurn();
@@ -280,13 +317,13 @@ function start(){
   $('start').hidden=true;
   score={X:0,O:0,D:0};streak=0;starter='X';
   $('scx').textContent=0;$('sco').textContent=0;$('scd').textContent=0;
-  fit();newRound();
+  buildBoard();newRound();
 }
 $('go').addEventListener('click',start);
 $('restart').addEventListener('click',()=>{clearTimeout(cpuTimer);state='start';$('start').hidden=false;$('go').focus();});
 
-setMode(mode);setLevel(level);fit();
-board=Array(9).fill('');
+setMode(mode);setLevel(level);setSize(size);buildBoard();
+board=Array(N*N).fill('');
 </script>
 
 </body></html>
