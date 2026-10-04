@@ -19,13 +19,16 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 #wrap{position:fixed;inset:0;touch-action:none}
 canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
 .top{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 12px);margin:0 auto;padding:0 12px;max-width:520px;height:44px;
-  display:grid;grid-template-columns:44px 1fr 1fr 1fr 44px;align-items:center;gap:6px;pointer-events:none}
+  display:grid;grid-template-columns:44px 1fr 1fr 1fr 44px 44px;align-items:center;gap:6px;pointer-events:none}
 .stat{text-align:center;line-height:1}
 .stat b{display:block;font-family:var(--display);font-weight:400;font-size:24px;font-variant-numeric:tabular-nums}
 .stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
 #lives{color:#7bd88f;letter-spacing:.05em}
 .home{pointer-events:auto;width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
-.home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.home:focus-visible,.pause:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.pause{pointer-events:auto;width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);
+  border:0;padding:0;font-family:var(--body);font-weight:600;font-size:15px;cursor:pointer;box-shadow:none;position:relative;z-index:5}
+.pause:active{transform:none;box-shadow:none}
 /* de terugknop blijft boven de pop-ups, zodat je altijd naar het overzicht kunt */
 .home{position:relative;z-index:5}
 .overlay{position:absolute;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62)}
@@ -55,13 +58,14 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
     <div class="stat"><b id="score">0</b><span>Score</span></div>
     <div class="stat"><b id="wave">1</b><span>Golf</span></div>
     <div class="stat"><b id="lives">&#9650;&#9650;&#9650;</b><span>Levens</span></div>
+    <button class="pause" id="pausebtn" aria-label="Pauze">&#10074;&#10074;</button>
     <button class="sndbtn" aria-label="Geluid aan of uit"></button>
   </div>
 
   <div class="overlay" id="start">
     <div class="panel">
       <h1>Alien Invasie</h1>
-      <p>Houd je vinger op het scherm: je schip volgt je vinger en schiet vanzelf. Op de computer: pijltjes en spatie. Schiet alle aliens neer voor ze beneden zijn.</p>
+      <p>Houd je vinger op het scherm: je schip volgt je vinger en schiet vanzelf. Op de computer: pijltjes en spatie, P om te pauzeren. Schiet alle aliens neer voor ze beneden zijn.</p>
       <div class="points" id="points"></div>
       <div class="legend">
         <span><i style="background:#6cb6ff">3</i>Driedubbel</span>
@@ -79,6 +83,13 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
     </div>
   </div>
 
+  <div class="overlay" id="paused" hidden>
+    <div class="panel">
+      <h1>Pauze</h1>
+      <button id="resume">Verder</button>
+    </div>
+  </div>
+
   <div class="overlay" id="over" hidden>
     <div class="panel">
       <h1 id="overtitle">Game over</h1>
@@ -89,7 +100,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=5.0"></script>
+<script src="../../version.js?v=5.1"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -380,10 +391,17 @@ function start(){$('start').hidden=true;$('over').hidden=true;reset();state='pla
 $('go').addEventListener('click',start);
 $('again').addEventListener('click',start);
 
+// pauze: knop rechtsboven, toets P of Escape, en vanzelf als je de app verlaat
+function pause(){if(state!=='play')return;state='paused';holding=false;keyDir=0;keyFire=false;$('paused').hidden=false;$('resume').focus();}
+function resume(){if(state!=='paused')return;state='play';$('paused').hidden=true;last=performance.now();}
+$('pausebtn').addEventListener('click',e=>{e.stopPropagation();e.currentTarget.blur();state==='paused'?resume():pause();});
+$('resume').addEventListener('click',resume);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
+
 // besturing: vinger of muis volgen, zolang je drukt schiet het schip vanzelf
 function aim(e){if(player)player.x=(e.clientX-fx)/S;}
 $('wrap').addEventListener('pointerdown',e=>{
-  if(state!=='play'||e.target.closest('.overlay,.home,.sndbtn'))return;
+  if(state!=='play'||e.target.closest('.overlay,.home,.sndbtn,.pause'))return;
   e.preventDefault();holding=true;aim(e);
 });
 $('wrap').addEventListener('pointermove',e=>{
@@ -393,6 +411,7 @@ $('wrap').addEventListener('pointermove',e=>{
 addEventListener('pointerup',()=>{holding=false});
 addEventListener('pointercancel',()=>{holding=false});
 addEventListener('keydown',e=>{
+  if(e.code==='KeyP'||e.code==='Escape'){if(state==='play')pause();else if(state==='paused')resume();return;}
   if(state!=='play')return;
   if(e.code==='ArrowLeft'||e.code==='KeyA'){keyDir=-1;e.preventDefault();}
   if(e.code==='ArrowRight'||e.code==='KeyD'){keyDir=1;e.preventDefault();}
@@ -465,8 +484,10 @@ let last=performance.now();
 function loop(t){
   const dt=Math.min((t-last)/1000,0.033);last=t;
   if(state==='play')update(dt);
-  for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.t-=dt;}
-  parts=(parts||[]).filter(p=>p.t>0);
+  if(state!=='paused'){   // bij pauze blijven ook de vonkjes stilstaan
+    for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.t-=dt;}
+    parts=(parts||[]).filter(p=>p.t>0);
+  }
   draw(t);
   requestAnimationFrame(loop);
 }
