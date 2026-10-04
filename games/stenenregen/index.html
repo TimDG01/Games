@@ -13,7 +13,7 @@
   --body:'Outfit', system-ui, -apple-system, sans-serif;
   color-scheme:dark;
 }
-*{box-sizing:border-box}
+*{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-family:var(--body);
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 #wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;touch-action:none;
@@ -111,7 +111,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=4.6"></script>
+<script src="../../version.js?v=4.7"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -344,6 +344,10 @@ function resume(){if(state!=='paused')return;state='play';$('paused').hidden=tru
 $('pausebtn').addEventListener('click',e=>{e.currentTarget.blur();state==='paused'?resume():pause();});
 $('resume').addEventListener('click',resume);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
+
+// iPhone: geen vergrootglas, selectie of zoom bij lang drukken of snel tikken op het veld en de knoppen.
+// De pointer-events hieronder blijven gewoon werken.
+for(const el of[$('stage'),$('pad')])el.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
 
 /* --- knoppen onderaan: ingedrukt houden herhaalt --- */
 // één rij omlaag, voor de knop en het pijltje
