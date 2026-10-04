@@ -96,7 +96,7 @@ button[hidden]{display:none}
   </div>
 </div>
 
-<script src="../../version.js?v=5.6"></script>
+<script src="../../version.js?v=5.7"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -399,7 +399,9 @@ function draw(t){
     const o=paddle.w/2-6;
     for(const sx of[paddle.x-o,paddle.x+o])ctx.fillRect(sx-3,paddle.y-6,6,7);
   }
-  ctx.fillStyle=paddle.wideT>0?'#7bd88f':'#ffb347';
+  // brede plank knippert de laatste seconden, zodat je ziet dat hij weer kleiner wordt
+  const wideEnd=paddle.wideT>0&&paddle.wideT<2.5&&Math.floor(paddle.wideT*(paddle.wideT<1?10:6))%2===0;
+  ctx.fillStyle=paddle.wideT>0&&!wideEnd?'#7bd88f':'#ffb347';
   rr(paddle.x-paddle.w/2,paddle.y,paddle.w,paddle.h,6);
   ctx.fillStyle='rgba(255,255,255,0.35)';ctx.fillRect(paddle.x-paddle.w/2+6,paddle.y+2,paddle.w-12,2);
   for(const b of balls)if(b.trail)b.trail.forEach((p,i)=>{
@@ -408,6 +410,7 @@ function draw(t){
   ctx.fillStyle=fastT>0?'#ffb347':'#f4f0e6';
   for(const b of balls){ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();}
   // balkjes die aftellen
+  if(paddle.wideT>0){ctx.fillStyle='#7bd88f';ctx.fillRect(FW/2-40,FH-18,80*Math.min(1,paddle.wideT/12),4);}
   if(fastT>0){ctx.fillStyle='#b48cff';ctx.fillRect(FW/2-40,FH-12,80*Math.min(1,fastT/8),4);}
   if(laserT>0){ctx.fillStyle='#ffe066';ctx.fillRect(FW/2-40,FH-6,80*Math.min(1,laserT/6),4);}
   if(flash){
