@@ -88,7 +88,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=5.3"></script>
+<script src="../../version.js?v=5.4"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -156,7 +156,7 @@ function newWave(){
   while(pendingCity>0&&cities.some(c=>!c.alive)){cities.find(c=>!c.alive).alive=true;pendingCity--;}
   enemies=[];planes=[];missiles=[];blasts=[];caps=[];tally=0;
   bigBomb=false;megaT=0;fastT=0;freezeT=0;domeT=0;
-  toSpawn=10+wave*2;spawnT=1.8;planeT=6+rnd()*6;
+  toSpawn=10+Math.floor(wave*1.5);spawnT=1.8;planeT=6+rnd()*6;
   capLeft=Math.min(2+Math.floor(wave/3),4);capT=4+rnd()*6;
   banner=1.8;bannerText='Golf '+wave;bannerSub=wave===1?'Verdedig je steden!':'×'+mult()+' bonus';
   $('wave').textContent=wave;showCities();
@@ -177,11 +177,12 @@ function targets(){
   if(!t.length)for(const c of cities)t.push({x:c.x,y:GROUND-4});
   return t;
 }
-const speedE=()=>Math.min(28+wave*6,120);
+// moeilijkheid loopt rustig op: snelheid, aantal en nieuwe soorten komen geleidelijk
+const speedE=()=>Math.min(28+wave*3.5,100);
 function launchEnemy(x,y,smart){
   const ts=targets(), t=ts[Math.floor(rnd()*ts.length)];
   const e={sx:x,sy:y,x,y,tx:t.x+(rnd()-0.5)*8,ty:t.y,sp:speedE()*(smart?0.8:1),smart:!!smart,split:false};
-  if(!smart&&wave>=2&&y<100&&rnd()<Math.min(0.1+wave*0.04,0.4)){e.split=true;e.splitY=140+rnd()*180;}
+  if(!smart&&wave>=3&&y<100&&rnd()<Math.min(0.05+wave*0.025,0.3)){e.split=true;e.splitY=140+rnd()*180;}
   aim(e);enemies.push(e);
 }
 function aim(e){const dx=e.tx-e.x,dy=e.ty-e.y,d=Math.hypot(dx,dy)||1;e.vx=dx/d*e.sp;e.vy=dy/d*e.sp;}
@@ -259,17 +260,17 @@ function update(dt){
   if(state==='play'&&toSpawn>0&&!frozen&&banner<=0.4){
     spawnT-=dt;
     const inAir=enemies.length;
-    if(spawnT<=0&&inAir<4+wave){
-      const n=Math.min(toSpawn,1+Math.floor(rnd()*Math.min(3,1+wave/2)));
+    if(spawnT<=0&&inAir<3+Math.ceil(wave/2)){
+      const n=Math.min(toSpawn,1+Math.floor(rnd()*Math.min(3,1+wave/4)));
       for(let i=0;i<n;i++){
-        const smart=wave>=5&&rnd()<Math.min(0.08+wave*0.02,0.3);
+        const smart=wave>=7&&rnd()<Math.min(0.04+wave*0.015,0.25);
         launchEnemy(10+rnd()*(FW-20),0,smart);toSpawn--;
       }
-      spawnT=Math.max(0.6,2.6-wave*0.15)+rnd()*1.2;
+      spawnT=Math.max(0.8,2.6-wave*0.08)+rnd()*1.2;
     }
-    // vliegtuigen vanaf golf 3: vliegen over en laten raketten vallen
-    if(wave>=3){planeT-=dt;if(planeT<=0){
-      const left=rnd()<0.5;planes.push({x:left?-20:FW+20,y:110+rnd()*90,v:(left?1:-1)*(45+wave*3),dropT:1+rnd()*2,drops:2});
+    // vliegtuigen vanaf golf 4: vliegen over en laten raketten vallen
+    if(wave>=4){planeT-=dt;if(planeT<=0){
+      const left=rnd()<0.5;planes.push({x:left?-20:FW+20,y:110+rnd()*90,v:(left?1:-1)*(45+wave*2),dropT:1+rnd()*2,drops:2});
       planeT=10+rnd()*8;
     }}
   }
