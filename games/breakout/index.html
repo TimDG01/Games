@@ -42,6 +42,10 @@ button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background
   padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
 button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
 button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+button[hidden]{display:none}
+/* tweede keuze: begin toch weer bij level 1 */
+button.alt{font-size:15px;color:var(--fg);background:transparent;border:2px solid var(--accent);padding:10px 14px;box-shadow:none}
+button.alt:active{transform:none;box-shadow:none;background:rgba(255,179,71,.15)}
 </style>
 </head><body>
 
@@ -68,6 +72,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
       </div>
       <p id="bestline">Record 0</p>
       <button id="go">Start</button>
+      <button id="go1" class="alt" hidden>Begin bij level 1</button>
       <div class="ver">Versie <span id="ver"></span></div>
     </div>
   </div>
@@ -78,11 +83,12 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
       <div class="big" id="final">0</div>
       <p id="overmsg">punten</p>
       <button id="again">Opnieuw</button>
+      <button id="again1" class="alt" hidden>Begin bij level 1</button>
     </div>
   </div>
 </div>
 
-<script src="../../version.js?v=4.1"></script>
+<script src="../../version.js?v=4.2"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -102,6 +108,15 @@ addEventListener('resize',resize);resize();
 
 let best=0; try{best=+localStorage.getItem('breakout-best')||0}catch(e){}
 $('bestline').textContent='Record '+best;
+// hoogste level dat je hebt gehaald: daar kun je de volgende keer verder spelen
+let unlocked=1; try{unlocked=Math.max(1,+localStorage.getItem('breakout-level')||1)}catch(e){}
+function showResume(){
+  const more=unlocked>1;
+  $('go').textContent=more?'Verder bij level '+unlocked:'Start';
+  $('again').textContent=more?'Opnieuw bij level '+unlocked:'Opnieuw';
+  $('go1').hidden=$('again1').hidden=!more;
+}
+showResume();
 
 let flash=null,fastT=0,laserT=0,shotT=0,shots=[],state='start',score,lives,level,bricks,balls,drops,parts,paddle,banner=0,keyDir=0;
 
@@ -155,11 +170,12 @@ function makeLevel(L){
 
 function newBall(){return{x:paddle.x,y:paddle.y-7,vx:0,vy:0,r:6,stuck:true};}
 function startLevel(){
+  if(level>unlocked){unlocked=level;try{localStorage.setItem('breakout-level',unlocked)}catch(e){}}
   bricks=makeLevel(level);lvlT=0;balls=[newBall()];drops=[];paddle.wideT=0;fastT=0;laserT=0;shots=[];banner=1.6;
   $('level').textContent=level;
 }
-function reset(){
-  score=0;lives=3;level=1;parts=[];
+function reset(from=1){
+  score=0;lives=3;level=from;parts=[];
   paddle={x:FW/2,y:FH-36,w:72,h:12,wideT:0};
   $('score').textContent=0;showLives();startLevel();
 }
@@ -288,15 +304,17 @@ function end(){
   state='over';
   const rec=score>best;
   if(rec){best=score;try{localStorage.setItem('breakout-best',best)}catch(e){}}
-  $('bestline').textContent='Record '+best;
+  $('bestline').textContent='Record '+best;showResume();
   $('final').textContent=score;
   $('overmsg').textContent=(score===1?'punt':'punten')+' · level '+level+(rec&&score>0?' · nieuw record!':'');
   setTimeout(()=>{$('over').hidden=false;$('again').focus();},500);
 }
 
-function start(){$('start').hidden=true;$('over').hidden=true;reset();state='play';beep(520,0.08);}
-$('go').addEventListener('click',start);
-$('again').addEventListener('click',start);
+function start(from){$('start').hidden=true;$('over').hidden=true;reset(from);state='play';beep(520,0.08);}
+$('go').addEventListener('click',()=>start(unlocked));
+$('again').addEventListener('click',()=>start(unlocked));
+$('go1').addEventListener('click',()=>start(1));
+$('again1').addEventListener('click',()=>start(1));
 
 // besturing: vinger of muis volgen, tik lanceert
 function aim(e){paddle&&(paddle.x=(e.clientX-fx)/S);}
