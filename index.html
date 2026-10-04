@@ -59,7 +59,7 @@ footer{max-width:960px;width:100%;margin:40px auto 0;color:var(--muted);font-siz
 </main>
 <footer>Versie <span id="version"></span></footer>
 
-<script src="version.js?v=4.3"></script>
+<script src="version.js?v=4.4"></script>
 <script>
 document.getElementById('version').textContent = SITE_VERSION;
 /*
@@ -285,6 +285,24 @@ const GAMES = [
            [0,3,'#6cb6ff','2048'],[1,3,'#ffe066','128'],[2,3,'#7bd88f','512'],[3,3,'#36406a','4']]
           .map(([c, r, f, t]) => `<rect x="${3 + c * 16.25}" y="${3 + r * 16.25}" width="14" height="14" rx="2" fill="${f}"/>` +
             (t ? `<text x="${10 + c * 16.25}" y="${12.5 + r * 16.25}" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="${t.length > 3 ? 4.6 : t.length > 2 ? 5.6 : 7}" fill="${['#2a3358', '#36406a'].includes(f) ? '#f4f0e6' : '#0b0f1d'}">${t}</text>` : '')).join('')}
+      </g>`
+  },
+  {
+    title: 'Stenenregen',
+    href: 'games/stenenregen/',
+    description: 'De klassieker met vallende stenen. Schuif en draai ze tot een volle rij, die dan verdwijnt. Hoe lang hou jij het vol?',
+    tag: 'Klassieker',
+    bestKey: 'stenenregen-best',
+    bestLabel: n => n === 1 ? '1 punt' : n + ' punten',
+    thumb: `
+      <rect width="160" height="90" fill="#10162a"/>
+      <rect x="50" y="2" width="60" height="88" fill="#0b0f1d"/>
+      ${[['#5fd4e6',0,7],['#5fd4e6',1,7],['#5fd4e6',2,7],['#5fd4e6',3,7],['#ffb347',4,7],['#ffb347',5,7],['#ffb347',5,6],['#ff7a7a',7,7],['#ff7a7a',8,7],['#ff7a7a',8,6],['#ff7a7a',9,6],
+         ['#7bd88f',0,6],['#7bd88f',1,6],['#7bd88f',1,5],['#7bd88f',2,5],['#6cb6ff',2,6],['#6cb6ff',3,6],['#6cb6ff',4,6],['#6cb6ff',4,5],['#ffe066',7,5],['#ffe066',8,5],['#ffe066',7,4],['#ffe066',8,4],
+         ['#b48cff',4,1],['#b48cff',5,1],['#b48cff',6,1],['#b48cff',5,2]]
+        .map(([f, c, r]) => `<rect x="${50.5 + c * 6}" y="${42.5 + r * 6 - (r < 3 ? 26 : 0)}" width="5" height="5" rx="1" fill="${f}"/>`).join('')}
+      <g opacity=".45" fill="none" stroke="#b48cff" stroke-width=".8">
+        <rect x="74.9" y="66.9" width="4.2" height="4.2"/><rect x="80.9" y="66.9" width="4.2" height="4.2"/><rect x="86.9" y="66.9" width="4.2" height="4.2"/><rect x="80.9" y="72.9" width="4.2" height="4.2"/>
       </g>`
   },
 ];
