@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Boter, Kaas en Eieren</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;600&display=swap">
+<style>
+/* Layout: stand bovenaan, raster in het midden, panelen erover */
+:root{
+  --bg:#141a2e; --bg-deep:#0b0f1d; --fg:#f4f0e6; --muted:#9097b5; --accent:#ffb347; --panel:#1d2440;
+  --x:#6cb6ff; --o:#ff7a7a;
+  --display:'Bungee', Impact, 'Arial Black', sans-serif;
+  --body:'Outfit', system-ui, -apple-system, sans-serif;
+  --cell:100px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+  padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 14px)}
+.top{width:100%;max-width:520px;height:44px;display:grid;grid-template-columns:40px 1fr 1fr 1fr 40px 40px;align-items:center;gap:6px}
+.stat{text-align:center;line-height:1}
+.stat b{display:block;font-family:var(--display);font-weight:400;font-size:26px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
+#sx b{color:var(--x)} #so b{color:var(--o)}
+#best{margin-top:8px;font-size:13px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;text-align:center}
+.stage{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;min-height:0}
+#msg{font-family:var(--display);font-size:20px;min-height:24px;text-align:center}
+#msg.x{color:var(--x)} #msg.o{color:var(--o)}
+#board{display:grid;grid-template-columns:repeat(3,var(--cell));gap:8px;touch-action:manipulation}
+.cell{width:var(--cell);height:var(--cell);border:0;padding:0;border-radius:8px;background:#2a3358;cursor:pointer;
+  box-shadow:inset 0 -4px 0 #1d2440, inset 0 2px 0 #36406a;display:grid;place-items:center}
+.cell:disabled{cursor:default}
+.cell:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+.cell svg{width:62%;height:62%;overflow:visible}
+.cell svg *{fill:none;stroke-width:14;stroke-linecap:round}
+.cell .mx{stroke:var(--x)} .cell .mo{stroke:var(--o)}
+.cell svg path,.cell svg circle{stroke-dasharray:150;stroke-dashoffset:150;animation:draw .25s ease-out forwards}
+.cell svg circle{stroke-dasharray:220;stroke-dashoffset:220}
+.cell svg path+path{animation-delay:.12s}
+@keyframes draw{to{stroke-dashoffset:0}}
+.cell.win{background:#36406a;animation:pop .4s ease-out}
+.cell.dim svg{opacity:.35}
+@keyframes pop{50%{transform:scale(1.08)}}
+#next{font-family:var(--display);font-size:18px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
+  padding:12px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14;visibility:hidden}
+#next.show{visibility:visible}
+#next:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
+.home{width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
+.home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.restart{width:40px;height:40px;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);border:0;font-size:20px;cursor:pointer;padding:0}
+/* de terugknop blijft boven de pop-ups, zodat je altijd naar het overzicht kunt */
+.home{position:relative;z-index:5}
+.overlay{position:fixed;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62)}
+.overlay[hidden]{display:none}
+.panel{background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:28px 24px;max-width:320px;width:100%;text-align:center;
+  display:flex;flex-direction:column;gap:14px;box-shadow:8px 8px 0 var(--bg-deep)}
+.panel h1{font-family:var(--display);font-weight:400;font-size:28px;line-height:1.05;margin:0;text-wrap:balance}
+.panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.45}
+.ver{font-size:12px;color:var(--muted);letter-spacing:.08em}
+.panel > button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
+  padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
+.panel > button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+.levels{display:flex;gap:6px}
+.levels button{flex:1;font-family:var(--display);font-size:13px;padding:10px 2px;color:var(--fg);background:transparent;border:2px solid #2f3860;border-radius:4px;cursor:pointer}
+.levels button[aria-pressed="true"]{color:var(--bg-deep);background:var(--accent);border-color:var(--accent)}
+.levels[hidden]{display:none}
+</style>
+</head><body>
+
+<div id="wrap">
+  <div class="top">
+    <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
+    <div class="stat" id="sx"><b id="scx">0</b><span id="nx">Jij</span></div>
+    <div class="stat"><b id="scd">0</b><span>Gelijk</span></div>
+    <div class="stat" id="so"><b id="sco">0</b><span id="no">Computer</span></div>
+    <button class="sndbtn" aria-label="Geluid aan of uit"></button>
+    <button class="restart" id="restart" aria-label="Andere spelvorm kiezen">&#8635;</button>
+  </div>
+  <div id="best">Record –</div>
+  <div class="stage">
+    <div id="msg" aria-live="polite"></div>
+    <div id="board" aria-label="Speelveld"></div>
+    <button id="next">Nog een ronde</button>
+  </div>
+
+  <div class="overlay" id="start">
+    <div class="panel">
+      <h1>Boter, Kaas en Eieren</h1>
+      <p>Zet om de beurt een kruisje of een rondje. Wie het eerst drie op een rij heeft, wint: horizontaal, verticaal of schuin.</p>
+      <div class="levels" role="group" aria-label="Tegenstander">
+        <button data-mode="cpu">Computer</button>
+        <button data-mode="duo">Met z'n 2en</button>
+      </div>
+      <div class="levels" id="levels" role="group" aria-label="Moeilijkheid">
+        <button data-level="makkelijk">Makkelijk</button>
+        <button data-level="normaal">Normaal</button>
+        <button data-level="moeilijk">Moeilijk</button>
+      </div>
+      <button id="go">Start</button>
+      <div class="ver">Versie <span id="ver"></span></div>
+    </div>
+  </div>
+</div>
+
+<script src="../../version.js?v=5.8"></script>
+<script>
+const $=id=>document.getElementById(id);
+try{$('ver').textContent=SITE_VERSION}catch(e){}
+
+const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+const LEVELS={makkelijk:'Makkelijk',normaal:'Normaal',moeilijk:'Moeilijk'};
+const MARK={
+  X:'<svg viewBox="0 0 100 100" aria-hidden="true"><path class="mx" d="M18 18L82 82"/><path class="mx" d="M82 18L18 82"/></svg>',
+  O:'<svg viewBox="0 0 100 100" aria-hidden="true"><circle class="mo" cx="50" cy="50" r="34" transform="rotate(-90 50 50)"/></svg>',
+};
+// record: zoveel keer op rij van de computer gewonnen, per moeilijkheid
+const bestKey=l=>'bke-best-'+l;
+
+let mode='cpu', level='normaal';
+try{const m=localStorage.getItem('bke-mode');if(m==='cpu'||m==='duo')mode=m;
+    const l=localStorage.getItem('bke-level');if(LEVELS[l])level=l;}catch(e){}
+let board,turn,starter='X',state='start',score,streak=0,best=0,cpuTimer=null;
+const cells=[];
+
+function readBest(l){try{return +localStorage.getItem(bestKey(l))||0}catch(e){return 0}}
+function showBest(){
+  $('best').textContent=mode==='duo'?'Met z\'n tweeën':'Record '+(best?best+' op rij':'–')+' · '+LEVELS[level];
+}
+function setMode(m){
+  mode=m;try{localStorage.setItem('bke-mode',m)}catch(e){}
+  document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===m));
+  $('levels').hidden=m!=='cpu';
+  $('nx').textContent=m==='cpu'?'Jij':'Kruisje';$('no').textContent=m==='cpu'?'Computer':'Rondje';
+  showBest();
+}
+function setLevel(l){
+  level=l;try{localStorage.setItem('bke-level',l)}catch(e){}
+  best=readBest(l);
+  document.querySelectorAll('[data-level]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.level===l));
+  showBest();
+}
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+document.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',()=>setLevel(b.dataset.level)));
+
+/* geluid: kleine piep, start pas na de eerste tik */
+let ac=null;
+function beep(f,d=0.09,type='triangle',v=0.12){
+  if(window.SITE_SOUND&&!SITE_SOUND.on)return;   // geluid uitgezet
+  try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+d);
+    o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d);}catch(e){}
+}
+
+function fit(){
+  const availW=Math.min(innerWidth-24,520), availH=innerHeight-160-$('wrap').querySelector('.top').offsetHeight;
+  const size=Math.floor(Math.min((availW-16)/3,(availH-16)/3,140));
+  document.documentElement.style.setProperty('--cell',Math.max(64,size)+'px');
+}
+addEventListener('resize',fit);
+
+for(let i=0;i<9;i++){
+  const c=document.createElement('button');c.className='cell';c.dataset.i=i;
+  $('board').appendChild(c);cells.push(c);
+}
+
+function winner(b){
+  for(const l of LINES)if(b[l[0]]&&b[l[0]]===b[l[1]]&&b[l[0]]===b[l[2]])return {who:b[l[0]],line:l};
+  return b.every(Boolean)?{who:null,line:[]}:null;
+}
+
+/* computer is altijd rondje (O) */
+function minimax(b,me,depth){
+  const w=winner(b);
+  if(w)return w.who==='O'?10-depth:w.who==='X'?depth-10:0;
+  let bestV=me==='O'?-99:99;
+  for(let i=0;i<9;i++)if(!b[i]){
+    b[i]=me;const v=minimax(b,me==='O'?'X':'O',depth+1);b[i]='';
+    bestV=me==='O'?Math.max(bestV,v):Math.min(bestV,v);
+  }
+  return bestV;
+}
+function bestMoves(){
+  let top=-99,moves=[];
+  for(let i=0;i<9;i++)if(!board[i]){
+    board[i]='O';const v=minimax(board,'X',1);board[i]='';
+    if(v>top){top=v;moves=[i];}else if(v===top)moves.push(i);
+  }
+  return moves;
+}
+function finishing(who){ // een vakje waarmee 'who' meteen drie op een rij heeft
+  for(const l of LINES){
+    const v=l.map(i=>board[i]);
+    if(v.filter(x=>x===who).length===2&&v.includes(''))return l[v.indexOf('')];
+  }
+  return -1;
+}
+function cpuMove(){
+  const free=board.map((v,i)=>v?-1:i).filter(i=>i>=0);
+  const any=()=>free[Math.floor(Math.random()*free.length)];
+  if(level==='moeilijk'){const m=bestMoves();return m[Math.floor(Math.random()*m.length)];}
+  if(level==='normaal'){
+    // wint als het kan, blokkeert meestal, en speelt anders soms slim en soms zomaar wat
+    const w=finishing('O');if(w>=0)return w;
+    const blk=finishing('X');if(blk>=0&&Math.random()<0.85)return blk;
+    if(Math.random()<0.5){const m=bestMoves();return m[Math.floor(Math.random()*m.length)];}
+    return any();
+  }
+  const w=finishing('O');if(w>=0&&Math.random()<0.5)return w;
+  return any();
+}
+
+function showTurn(){
+  const el=$('msg');el.className=turn.toLowerCase();
+  el.textContent=mode==='cpu'?(turn==='X'?'Jouw beurt':'Computer denkt…'):(turn==='X'?'Kruisje is aan de beurt':'Rondje is aan de beurt');
+}
+
+function newRound(){
+  clearTimeout(cpuTimer);
+  board=Array(9).fill('');turn=starter;state='play';
+  for(const c of cells){c.innerHTML='';c.className='cell';c.disabled=false;c.setAttribute('aria-label','Leeg vakje');}
+  $('next').classList.remove('show');
+  showTurn();
+  if(mode==='cpu'&&turn==='O')cpuTimer=setTimeout(doCpu,600);
+}
+
+function place(i){
+  board[i]=turn;
+  const c=cells[i];c.innerHTML=MARK[turn];c.disabled=true;c.setAttribute('aria-label',turn==='X'?'Kruisje':'Rondje');
+  beep(turn==='X'?520:390,0.07);
+  const w=winner(board);
+  if(w)return endRound(w);
+  turn=turn==='X'?'O':'X';showTurn();
+  if(mode==='cpu'&&turn==='O'){state='cpu';cpuTimer=setTimeout(doCpu,450+Math.random()*350);}
+}
+function doCpu(){state='play';place(cpuMove());}
+
+function endRound(w){
+  state='over';
+  for(const c of cells)c.disabled=true;
+  const el=$('msg');
+  if(w.who){
+    w.line.forEach(i=>cells[i].classList.add('win'));
+    cells.forEach((c,i)=>{if(board[i]&&!w.line.includes(i))c.classList.add('dim');});
+    score[w.who]++;
+    el.className=w.who.toLowerCase();
+    if(mode==='cpu'){
+      if(w.who==='X'){
+        el.textContent='Je wint!';streak++;
+        if(streak>best){best=streak;try{localStorage.setItem(bestKey(level),best)}catch(e){}showBest();}
+        [523,659,784,1047].forEach((f,k)=>setTimeout(()=>beep(f,0.12),k*110));
+      }else{el.textContent='De computer wint';streak=0;[392,330,262].forEach((f,k)=>setTimeout(()=>beep(f,0.14),k*130));}
+    }else{
+      el.textContent=(w.who==='X'?'Kruisje':'Rondje')+' wint!';
+      [523,659,784,1047].forEach((f,k)=>setTimeout(()=>beep(f,0.12),k*110));
+    }
+  }else{
+    score.D++;el.className='';el.textContent='Gelijkspel';
+    [440,440].forEach((f,k)=>setTimeout(()=>beep(f,0.1),k*150));
+  }
+  $('scx').textContent=score.X;$('sco').textContent=score.O;$('scd').textContent=score.D;
+  starter=starter==='X'?'O':'X';   // om de beurt beginnen
+  setTimeout(()=>{$('next').classList.add('show');$('next').focus();},500);
+}
+
+$('board').addEventListener('click',e=>{
+  const c=e.target.closest('.cell');if(!c)return;
+  const i=+c.dataset.i;
+  if(state!=='play'||board[i])return;
+  if(mode==='cpu'&&turn!=='X')return;
+  place(i);
+});
+$('next').addEventListener('click',newRound);
+
+function start(){
+  $('start').hidden=true;
+  score={X:0,O:0,D:0};streak=0;starter='X';
+  $('scx').textContent=0;$('sco').textContent=0;$('scd').textContent=0;
+  fit();newRound();
+}
+$('go').addEventListener('click',start);
+$('restart').addEventListener('click',()=>{clearTimeout(cpuTimer);state='start';$('start').hidden=false;$('go').focus();});
+
+setMode(mode);setLevel(level);fit();
+board=Array(9).fill('');
+</script>
+
+</body></html>

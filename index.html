@@ -59,7 +59,7 @@ footer{max-width:960px;width:100%;margin:40px auto 0;color:var(--muted);font-siz
 </main>
 <footer>Versie <span id="version"></span></footer>
 
-<script src="version.js?v=5.7"></script>
+<script src="version.js?v=5.8"></script>
 <script>
 document.getElementById('version').textContent = SITE_VERSION;
 /*
@@ -328,6 +328,23 @@ const GAMES = [
       <path d="M118 56 A10 10 0 0 1 138 56" fill="#f4f0e6" opacity=".8"/>
       <path d="M118 56 L124 62 M138 56 L132 62" stroke="#f4f0e6" stroke-opacity=".55" stroke-width=".8"/>
       <rect x="121" y="61" width="14" height="7" rx="3.5" fill="#4fd1c5"/>`
+  },
+  {
+    title: 'Boter, Kaas en Eieren',
+    href: 'games/boter-kaas-eieren/',
+    description: 'Drie op een rij met kruisjes en rondjes. Speel tegen de computer op drie niveaus, of met z\'n tweeën op één scherm.',
+    tag: 'Klassieker',
+    bestKey: 'bke-best-normaal',
+    bestLabel: n => n + ' op rij gewonnen',
+    thumb: `
+      <rect width="160" height="90" fill="#10162a"/>
+      <g transform="translate(47 12)">
+        ${[...Array(9)].map((_, i) => `<rect x="${(i % 3) * 23}" y="${Math.floor(i / 3) * 23}" width="20" height="20" rx="3" fill="${[0, 4, 8].includes(i) ? '#36406a' : '#2a3358'}"/>`).join('')}
+        <g stroke="#6cb6ff" stroke-width="3.5" stroke-linecap="round" fill="none">
+          <path d="M5 5l10 10M15 5L5 15"/><path d="M28 28l10 10M38 28L28 38"/><path d="M51 51l10 10M61 51L51 61"/><path d="M51 5l10 10M61 5L51 15"/>
+        </g>
+        <g stroke="#ff7a7a" stroke-width="3.5" fill="none" opacity=".45"><circle cx="33" cy="10" r="5.5"/><circle cx="10" cy="56" r="5.5"/><circle cx="56" cy="33" r="5.5"/></g>
+      </g>`
   },
 ];
 
