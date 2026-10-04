@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Raketschild</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;600&display=swap">
+<style>
+/* Layout: tellers bovenaan, staand speelveld eronder dat zich aan het scherm aanpast, panelen erover */
+:root{
+  --bg:#141a2e; --bg-deep:#0b0f1d; --fg:#f4f0e6; --muted:#9097b5; --accent:#ffb347; --panel:#1d2440;
+  --display:'Bungee', Impact, 'Arial Black', sans-serif;
+  --body:'Outfit', system-ui, -apple-system, sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#wrap{position:fixed;inset:0;touch-action:none}
+canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
+.top{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 12px);margin:0 auto;padding:0 12px;max-width:520px;height:44px;
+  display:grid;grid-template-columns:44px 1fr 1fr 1fr 44px 44px;align-items:center;gap:6px;pointer-events:none}
+.stat{text-align:center;line-height:1}
+.stat b{display:block;font-family:var(--display);font-weight:400;font-size:24px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+#cities{color:#6cb6ff}
+.home{pointer-events:auto;width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
+.home:focus-visible,.pause:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+/* de terugknop blijft boven de pop-ups, zodat je altijd naar het overzicht kunt */
+.home{position:relative;z-index:5}
+.pause{pointer-events:auto;width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);
+  border:0;padding:0;font-family:var(--body);font-weight:600;font-size:15px;cursor:pointer;box-shadow:none;position:relative;z-index:5}
+.pause:active{transform:none;box-shadow:none}
+.overlay{position:absolute;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62);overflow-y:auto}
+.overlay[hidden]{display:none}
+.panel{background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:28px 24px;max-width:340px;width:100%;text-align:center;
+  display:flex;flex-direction:column;gap:14px;box-shadow:8px 8px 0 var(--bg-deep);margin:16px 0}
+.panel h1{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.05;margin:0;text-wrap:balance}
+.panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.45}
+.ver{font-size:12px;color:var(--muted);letter-spacing:.08em}
+.big{font-family:var(--display);font-size:56px;line-height:1;color:var(--accent)}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:13px;color:var(--muted);text-align:left}
+.legend i{display:inline-grid;place-items:center;width:20px;height:14px;border-radius:7px;margin-right:5px;font-style:normal;font-size:10px;font-weight:600;color:#0b0f1d;vertical-align:-2px}
+button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
+  padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
+button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+</style>
+</head><body>
+
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div class="top" id="top">
+    <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
+    <div class="stat"><b id="score">0</b><span>Score</span></div>
+    <div class="stat"><b id="wave">1</b><span>Golf</span></div>
+    <div class="stat"><b id="cities">6</b><span>Steden</span></div>
+    <button class="pause" id="pausebtn" aria-label="Pauze">&#10074;&#10074;</button>
+    <button class="sndbtn" aria-label="Geluid aan of uit"></button>
+  </div>
+
+  <div class="overlay" id="start">
+    <div class="panel">
+      <h1>Raketschild</h1>
+      <p>Raketten vallen op je steden. Tik waar je ze wilt opvangen: je eigen raket vliegt erheen en ontploft daar. Alles in de ontploffing is weg. Mik een beetje vóór de raket uit.</p>
+      <p>Schiet de capsules aan een parachute kapot voor een bonus. Op de computer: klikken, of pijltjes en spatie. P pauzeert.</p>
+      <div class="legend" id="legend"></div>
+      <p id="bestline">Record 0</p>
+      <button id="go">Start</button>
+      <div class="ver">Versie <span id="ver"></span></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="paused" hidden>
+    <div class="panel">
+      <h1>Pauze</h1>
+      <button id="resume">Verder</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="over" hidden>
+    <div class="panel">
+      <h1 id="overtitle">De steden zijn gevallen</h1>
+      <div class="big" id="final">0</div>
+      <p id="overmsg">punten</p>
+      <button id="again">Opnieuw</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../version.js?v=5.2"></script>
+<script>
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+try{$('ver').textContent=SITE_VERSION}catch(e){}
+
+// speelveld in vaste eenheden, geschaald naar het scherm
+const FW=400, FH=600, GROUND=550;
+let W,H,dpr,S,fx,fy;
+function resize(){
+  dpr=Math.min(window.devicePixelRatio||1,3);W=innerWidth;H=innerHeight;
+  cv.width=W*dpr;cv.height=H*dpr;
+  const top=$('top').getBoundingClientRect().bottom+10, bottom=12, avH=H-top-bottom;
+  S=Math.min((W-16)/FW,avH/FH);fx=(W-FW*S)/2;fy=top+(avH-FH*S)/2;
+}
+addEventListener('resize',resize);resize();
+
+const rnd=Math.random, clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), dist=(a,b,c,d)=>Math.hypot(a-c,b-d);
+
+/* geluid: kleine piep, start pas na de eerste tik */
+let ac=null;
+function beep(f,d=0.07,type='square',v=0.05,slide){
+  if(window.SITE_SOUND&&!SITE_SOUND.on)return;   // geluid uitgezet
+  try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+    if(slide)o.frequency.exponentialRampToValueAtTime(slide,ac.currentTime+d);
+    g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+d);
+    o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d);}catch(e){}
+}
+
+/* bonuscapsules: kleur, teken, naam op het scherm, uitleg op het startscherm */
+const BONUS={
+  schild:['#4fd1c5','◯','Schild!','Schild over je steden'],
+  bom:['#ffb347','✸','Grote bom klaar!','Grote bom'],
+  mega:['#ff7a7a','+','Mega-knal!','Grotere ontploffingen'],
+  snel:['#ffe066','»','Snelle raketten!','Snellere raketten'],
+  ijs:['#a8e6ff','❄','Bevroren!','Alles bevriest'],
+  vul:['#7bd88f','▲','Bijgevuld!','Bases bijvullen'],
+  stad:['#6cb6ff','⌂','Stad herbouwd!','Stad herbouwen'],
+  flits:['#b48cff','★','Flits!','Alles ontploft'],
+};
+// kans per soort (samen 1)
+const BONUS_KANS=[['schild',.16],['bom',.16],['mega',.14],['snel',.12],['ijs',.12],['vul',.12],['flits',.10],['stad',.08]];
+(function(){
+  const el=$('legend');
+  for(const k in BONUS){const [col,ch,,txt]=BONUS[k];
+    const s=document.createElement('span'),i=document.createElement('i');i.style.background=col;i.textContent=ch;s.append(i,txt);el.append(s);}
+})();
+
+let best=0; try{best=+localStorage.getItem('raket-best')||0}catch(e){}
+$('bestline').textContent='Record '+best;
+
+const BASE_X=[28,200,372], CITY_X=[76,116,156,244,284,324], AMMO=10;
+let state='start',score,wave,cities,bases,enemies,planes,missiles,blasts,caps,parts,flash,banner,bannerText,bannerSub;
+let toSpawn,spawnT,planeT,capT,capLeft,tally,nextCity,pendingCity,bigBomb,megaT,fastT,freezeT;
+let cross={x:FW/2,y:300,show:false}, keyX=0, keyY=0;
+
+function reset(){
+  score=0;wave=1;nextCity=10000;pendingCity=0;parts=[];flash=null;
+  cities=CITY_X.map(x=>({x,alive:true,shield:false}));
+  $('score').textContent=0;newWave();
+}
+function newWave(){
+  bases=BASE_X.map(x=>({x,alive:true,ammo:AMMO}));
+  // verdiende extra steden terugzetten
+  while(pendingCity>0&&cities.some(c=>!c.alive)){cities.find(c=>!c.alive).alive=true;pendingCity--;}
+  enemies=[];planes=[];missiles=[];blasts=[];caps=[];tally=0;
+  bigBomb=false;megaT=0;fastT=0;freezeT=0;
+  toSpawn=10+wave*2;spawnT=1.8;planeT=6+rnd()*6;
+  capLeft=Math.min(2+Math.floor(wave/3),4);capT=4+rnd()*6;
+  banner=1.8;bannerText='Golf '+wave;bannerSub=wave===1?'Verdedig je steden!':'×'+mult()+' bonus';
+  $('wave').textContent=wave;showCities();
+}
+const mult=()=>Math.min(1+Math.floor((wave-1)/2),6);
+function showCities(){$('cities').textContent=cities.filter(c=>c.alive).length;}
+function addScore(n){
+  score+=n;$('score').textContent=score;
+  if(score>=nextCity){nextCity+=10000;pendingCity++;flash={text:'Extra stad!',col:'#6cb6ff',t:1.6};beep(1320,0.2,'triangle',0.08);}
+}
+function boom(x,y,col,n=10){for(let i=0;i<n;i++)parts.push({x,y,vx:(rnd()-0.5)*160,vy:(rnd()-0.5)*160-40,t:0.6,col});}
+
+/* --- vijanden --- */
+function targets(){
+  const t=[];
+  for(const c of cities)if(c.alive)t.push({x:c.x,y:GROUND-4},{x:c.x,y:GROUND-4});   // steden vaker
+  for(const b of bases)if(b.alive)t.push({x:b.x,y:GROUND-14});
+  if(!t.length)for(const c of cities)t.push({x:c.x,y:GROUND-4});
+  return t;
+}
+const speedE=()=>Math.min(28+wave*6,120);
+function launchEnemy(x,y,smart){
+  const ts=targets(), t=ts[Math.floor(rnd()*ts.length)];
+  const e={sx:x,sy:y,x,y,tx:t.x+(rnd()-0.5)*8,ty:t.y,sp:speedE()*(smart?0.8:1),smart:!!smart,split:false};
+  if(!smart&&wave>=2&&y<100&&rnd()<Math.min(0.1+wave*0.04,0.4)){e.split=true;e.splitY=140+rnd()*180;}
+  aim(e);enemies.push(e);
+}
+function aim(e){const dx=e.tx-e.x,dy=e.ty-e.y,d=Math.hypot(dx,dy)||1;e.vx=dx/d*e.sp;e.vy=dy/d*e.sp;}
+function killEnemy(e,pts){
+  e.dead=true;addScore(pts);
+  blasts.push({x:e.x,y:e.y,r:0,max:20,t:0,own:true});   // kettingreactie
+  beep(180,0.15,'sawtooth',0.04,60);
+}
+function impact(e){
+  e.dead=true;
+  blasts.push({x:e.x,y:e.y,r:0,max:18,t:0,own:false});
+  for(const c of cities)if(c.alive&&Math.abs(c.x-e.x)<20){
+    if(c.shield){c.shield=false;boom(c.x,GROUND-14,'#4fd1c5',14);beep(330,0.15,'triangle',0.08);return;}
+    c.alive=false;boom(c.x,GROUND-10,'#6cb6ff',22);beep(90,0.5,'sawtooth',0.09,40);showCities();
+    if(!cities.some(c=>c.alive))end();
+    return;
+  }
+  for(const b of bases)if(b.alive&&Math.abs(b.x-e.x)<24){b.alive=false;b.ammo=0;boom(b.x,GROUND-10,'#9097b5',18);beep(110,0.4,'sawtooth',0.08,50);return;}
+}
+
+/* --- eigen raketten --- */
+function fire(tx,ty){
+  if(state!=='play'||tally>0)return;
+  ty=Math.min(ty,GROUND-34);
+  const b=bases.filter(b=>b.alive&&b.ammo>0).sort((p,q)=>Math.abs(p.x-tx)-Math.abs(q.x-tx))[0];
+  if(!b){beep(120,0.08,'square',0.03);return;}
+  b.ammo--;
+  const big=bigBomb;bigBomb=false;
+  const sp=(fastT>0?900:420)*(b.x===200?1.25:1);
+  const m={sx:b.x,sy:GROUND-20,x:b.x,y:GROUND-20,tx,ty,sp,big};
+  const d=dist(m.x,m.y,tx,ty)||1;m.vx=(tx-m.x)/d*sp;m.vy=(ty-m.y)/d*sp;
+  missiles.push(m);
+  beep(big?300:700,0.08,'square',0.03,big?150:1100);
+}
+function bang(x,y,big){
+  const max=big?115:(megaT>0?54:34);
+  blasts.push({x,y,r:0,max,t:0,own:true,big});
+  beep(big?60:140,big?0.7:0.25,'sawtooth',big?0.1:0.05,40);
+}
+function catchCap(c){
+  c.dead=true;addScore(50);beep(880,0.12,'sine',0.1);setTimeout(()=>beep(1175,0.12,'sine',0.08),90);
+  const k=c.type;
+  if(k==='schild')for(const s of cities)if(s.alive)s.shield=true;
+  if(k==='bom')bigBomb=true;
+  if(k==='mega')megaT=10;
+  if(k==='snel')fastT=10;
+  if(k==='ijs')freezeT=5;
+  if(k==='vul')for(const b of bases){b.alive=true;b.ammo=AMMO;}
+  if(k==='stad'){const d=cities.find(s=>!s.alive);if(d){d.alive=true;showCities();}else addScore(500);}
+  if(k==='flits'){
+    for(const e of enemies)if(!e.dead)killEnemy(e,e.smart?125:25);
+    for(const p of planes)if(!p.dead){p.dead=true;addScore(100);boom(p.x,p.y,'#ff7a7a',16);}
+    beep(70,0.6,'sawtooth',0.1,30);
+  }
+  flash={text:BONUS[k][2],col:BONUS[k][0],t:1.4};
+}
+
+function update(dt){
+  if(banner>0)banner-=dt;
+  if(megaT>0)megaT-=dt;
+  if(fastT>0)fastT-=dt;
+  if(freezeT>0)freezeT-=dt;
+  const frozen=freezeT>0;
+
+  // toetsenbord: vizier verschuiven
+  if(keyX||keyY){cross.x=clamp(cross.x+keyX*280*dt,0,FW);cross.y=clamp(cross.y+keyY*280*dt,0,GROUND-34);cross.show=true;}
+
+  // nieuwe raketten van boven, in kleine groepjes
+  if(state==='play'&&toSpawn>0&&!frozen&&banner<=0.4){
+    spawnT-=dt;
+    const inAir=enemies.length;
+    if(spawnT<=0&&inAir<4+wave){
+      const n=Math.min(toSpawn,1+Math.floor(rnd()*Math.min(3,1+wave/2)));
+      for(let i=0;i<n;i++){
+        const smart=wave>=5&&rnd()<Math.min(0.08+wave*0.02,0.3);
+        launchEnemy(10+rnd()*(FW-20),0,smart);toSpawn--;
+      }
+      spawnT=Math.max(0.6,2.6-wave*0.15)+rnd()*1.2;
+    }
+    // vliegtuigen vanaf golf 3: vliegen over en laten raketten vallen
+    if(wave>=3){planeT-=dt;if(planeT<=0){
+      const left=rnd()<0.5;planes.push({x:left?-20:FW+20,y:110+rnd()*90,v:(left?1:-1)*(45+wave*3),dropT:1+rnd()*2,drops:2});
+      planeT=10+rnd()*8;
+    }}
+  }
+
+  // bonuscapsules aan een parachute
+  if(state==='play'&&capLeft>0&&banner<=0){capT-=dt;if(capT<=0){
+    let q=rnd(),type='schild';for(const [k,p] of BONUS_KANS){if(q<p){type=k;break;}q-=p;}
+    caps.push({x:40+rnd()*(FW-80),y:-20,type,sw:rnd()*6});capLeft--;capT=6+rnd()*8;
+  }}
+  for(const c of caps){c.sw+=dt;c.y+=26*dt;c.x+=Math.sin(c.sw*1.3)*10*dt;if(c.y>GROUND-20)c.dead=true;}
+
+  // vijandelijke raketten
+  for(const e of enemies){
+    if(e.dead||frozen)continue;
+    if(e.smart){   // slimme bom ontwijkt ontploffingen
+      for(const b of blasts)if(b.own){const d=dist(e.x,e.y,b.x,b.y);if(d<b.r+28&&d>0)e.x+=(e.x-b.x)/d*90*dt;}
+      e.x=clamp(e.x,4,FW-4);aim(e);
+    }
+    e.x+=e.vx*dt;e.y+=e.vy*dt;
+    if(e.split&&e.y>=e.splitY){
+      e.split=false;
+      const n=1+(rnd()<0.4?1:0);
+      for(let i=0;i<n;i++){launchEnemy(e.x,e.y,false);}
+      beep(500,0.06,'square',0.03);
+    }
+    if(e.y>=e.ty)impact(e);
+  }
+  for(const p of planes){
+    if(p.dead||frozen)continue;
+    p.x+=p.v*dt;p.dropT-=dt;
+    if(p.dropT<=0&&p.drops>0&&p.x>20&&p.x<FW-20){p.drops--;p.dropT=1.5+rnd()*1.5;launchEnemy(p.x,p.y+6,false);}
+    if(p.x<-40||p.x>FW+40)p.dead=true;
+  }
+
+  // eigen raketten
+  for(const m of missiles){
+    const step=m.sp*dt, left=dist(m.x,m.y,m.tx,m.ty);
+    if(step>=left){m.dead=true;bang(m.tx,m.ty,m.big);}
+    else{m.x+=m.vx*dt;m.y+=m.vy*dt;}
+  }
+
+  // ontploffingen: groeien, blijven even hangen, krimpen. Alles wat erin zit is weg.
+  for(const b of blasts){
+    b.t+=dt;
+    const grow=b.big?0.5:0.35, hold=b.big?0.7:0.35, shrink=0.4;
+    b.r=b.t<grow?b.max*b.t/grow:b.t<grow+hold?b.max:b.max*Math.max(0,1-(b.t-grow-hold)/shrink);
+    if(b.t>grow+hold+shrink)b.dead=true;
+    if(!b.own)continue;
+    for(const e of enemies)if(!e.dead&&dist(e.x,e.y,b.x,b.y)<b.r)killEnemy(e,e.smart?125:25);
+    for(const p of planes)if(!p.dead&&dist(p.x,p.y,b.x,b.y)<b.r+9){p.dead=true;addScore(100);boom(p.x,p.y,'#ff7a7a',16);beep(250,0.3,'sawtooth',0.06,60);}
+    for(const c of caps)if(!c.dead&&dist(c.x,c.y,b.x,b.y)<b.r+10)catchCap(c);
+  }
+  enemies=enemies.filter(e=>!e.dead);planes=planes.filter(p=>!p.dead);
+  missiles=missiles.filter(m=>!m.dead);blasts=blasts.filter(b=>!b.dead);caps=caps.filter(c=>!c.dead);
+  if(state!=='play')return;
+
+  // golf voorbij: bonus voor steden en raketten die over zijn
+  if(!tally&&toSpawn<=0&&!enemies.length&&!planes.length&&!missiles.length&&!blasts.length){
+    const ammo=bases.reduce((s,b)=>s+(b.alive?b.ammo:0),0), alive=cities.filter(c=>c.alive).length;
+    const bonus=(ammo*5+alive*100)*mult();
+    addScore(bonus);caps=[];
+    tally=2.8;banner=2.8;bannerText='Golf '+wave+' gehaald';bannerSub='Bonus +'+bonus;
+    [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.12,'triangle',0.08),i*110));
+  }
+  if(tally>0){tally-=dt;if(tally<=0){wave++;newWave();}}
+}
+
+function end(){
+  if(state!=='play')return;
+  state='over';
+  const rec=score>best;
+  if(rec){best=score;try{localStorage.setItem('raket-best',best)}catch(e){}}
+  $('bestline').textContent='Record '+best;
+  $('final').textContent=score;
+  $('overmsg').textContent=(score===1?'punt':'punten')+' · golf '+wave+(rec&&score>0?' · nieuw record!':'');
+  setTimeout(()=>{$('over').hidden=false;$('again').focus();},1400);
+}
+
+function start(){$('start').hidden=true;$('over').hidden=true;reset();state='play';last=performance.now();beep(520,0.08,'triangle',0.08);}
+$('go').addEventListener('click',start);
+$('again').addEventListener('click',start);
+
+// pauze: knop rechtsboven, toets P of Escape, en vanzelf als je de app verlaat
+function pause(){if(state!=='play')return;state='paused';keyX=keyY=0;$('paused').hidden=false;$('resume').focus();}
+function resume(){if(state!=='paused')return;state='play';$('paused').hidden=true;last=performance.now();}
+$('pausebtn').addEventListener('click',e=>{e.stopPropagation();e.currentTarget.blur();state==='paused'?resume():pause();});
+$('resume').addEventListener('click',resume);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
+
+// besturing: tik of klik waar je raket moet ontploffen
+const toField=e=>({x:(e.clientX-fx)/S,y:(e.clientY-fy)/S});
+$('wrap').addEventListener('pointerdown',e=>{
+  if(state!=='play'||e.target.closest('.overlay,.home,.sndbtn,.pause'))return;
+  e.preventDefault();
+  const p=toField(e);if(p.x<0||p.x>FW||p.y<0||p.y>FH)return;
+  cross.x=p.x;cross.y=Math.min(p.y,GROUND-34);cross.show=e.pointerType==='mouse';
+  fire(p.x,p.y);
+});
+$('wrap').addEventListener('pointermove',e=>{
+  if(e.pointerType!=='mouse'||e.target.closest('.overlay'))return;
+  const p=toField(e);cross.x=clamp(p.x,0,FW);cross.y=clamp(p.y,0,GROUND-34);cross.show=p.x>=0&&p.x<=FW&&p.y>=0&&p.y<=FH;
+});
+addEventListener('keydown',e=>{
+  if(e.code==='KeyP'||e.code==='Escape'){if(state==='play')pause();else if(state==='paused')resume();return;}
+  if(state!=='play')return;
+  if(e.code==='ArrowLeft'||e.code==='KeyA'){keyX=-1;e.preventDefault();}
+  if(e.code==='ArrowRight'||e.code==='KeyD'){keyX=1;e.preventDefault();}
+  if(e.code==='ArrowUp'||e.code==='KeyW'){keyY=-1;e.preventDefault();}
+  if(e.code==='ArrowDown'||e.code==='KeyS'){keyY=1;e.preventDefault();}
+  if((e.code==='Space'||e.code==='Enter')&&!e.repeat){e.preventDefault();cross.show=true;fire(cross.x,cross.y);}
+});
+addEventListener('keyup',e=>{
+  if((e.code==='ArrowLeft'||e.code==='KeyA')&&keyX<0)keyX=0;
+  if((e.code==='ArrowRight'||e.code==='KeyD')&&keyX>0)keyX=0;
+  if((e.code==='ArrowUp'||e.code==='KeyW')&&keyY<0)keyY=0;
+  if((e.code==='ArrowDown'||e.code==='KeyS')&&keyY>0)keyY=0;
+});
+
+/* --- tekenen --- */
+const BLAST_COL=['#f4f0e6','#ffe066','#ffb347','#ff7a7a','#b48cff','#6cb6ff'];
+function drawCity(c,t){
+  const x=c.x,g=GROUND;
+  if(!c.alive){ctx.fillStyle='#3a4266';ctx.fillRect(x-13,g-4,8,4);ctx.fillRect(x-3,g-6,6,6);ctx.fillRect(x+6,g-3,7,3);return;}
+  ctx.fillStyle='#6cb6ff';
+  ctx.fillRect(x-14,g-14,7,14);ctx.fillRect(x-7,g-22,8,22);ctx.fillRect(x+1,g-12,6,12);ctx.fillRect(x+7,g-18,7,18);
+  ctx.fillStyle='#0b0f1d';
+  for(let y=g-19;y<g-2;y+=4){ctx.fillRect(x-5,y,1.5,1.5);ctx.fillRect(x-2,y,1.5,1.5);}
+  for(let y=g-15;y<g-2;y+=4)ctx.fillRect(x+9.5,y,1.5,1.5);
+  if(c.shield){
+    ctx.strokeStyle='rgba(79,209,197,'+(0.55+Math.sin(t/160)*0.25)+')';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(x,g,20,Math.PI,0);ctx.stroke();
+  }
+}
+function drawBase(b){
+  const x=b.x,g=GROUND;
+  ctx.fillStyle=b.alive?'#3a4470':'#262c48';
+  ctx.beginPath();ctx.moveTo(x-24,g);ctx.lineTo(x-13,g-18);ctx.lineTo(x+13,g-18);ctx.lineTo(x+24,g);ctx.fill();
+  if(!b.alive)return;
+  // de raketten die nog over zijn, als een stapeltje
+  ctx.fillStyle=bigBomb?'#ffb347':'#f4f0e6';
+  let n=0;
+  for(const [row,cnt] of [[0,4],[1,3],[2,2],[3,1]])for(let i=0;i<cnt;i++){
+    if(n++>=b.ammo)return;
+    ctx.fillRect(x-(cnt-1)*3.5+i*7-1.5,g-6-row*5,3,4);
+  }
+}
+function draw(t){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#141a2e';ctx.fillRect(0,0,W,H);
+  ctx.setTransform(dpr*S,0,0,dpr*S,dpr*fx,dpr*fy);
+  ctx.save();ctx.beginPath();ctx.rect(0,0,FW,FH);ctx.clip();
+  const sky=ctx.createLinearGradient(0,0,0,GROUND);sky.addColorStop(0,'#0b0f1d');sky.addColorStop(1,'#1a1f3d');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,FW,FH);
+  // sterretjes
+  ctx.fillStyle='rgba(244,240,230,0.3)';
+  for(let i=0;i<45;i++){const x=(i*97)%FW,y=(i*157)%(GROUND-80);ctx.globalAlpha=0.15+0.25*((Math.sin(t/700+i)+1)/2);ctx.fillRect(x,y,1.5,1.5);}
+  ctx.globalAlpha=1;
+  // grond
+  ctx.fillStyle='#2a2f52';ctx.fillRect(0,GROUND,FW,FH-GROUND);
+  ctx.fillStyle='#3a4470';ctx.fillRect(0,GROUND,FW,2);
+  if(!cities)return ctx.restore();
+
+  for(const c of cities)drawCity(c,t);
+  for(const b of bases)drawBase(b);
+
+  // vijandelijke sporen
+  const frozen=freezeT>0;
+  ctx.lineWidth=1.5;
+  for(const e of enemies){
+    if(e.smart){
+      ctx.fillStyle=frozen?'#a8e6ff':'#ff7a7a';ctx.save();ctx.translate(e.x,e.y);ctx.rotate(Math.PI/4+t/200);ctx.fillRect(-4,-4,8,8);ctx.restore();
+      continue;
+    }
+    ctx.strokeStyle=frozen?'rgba(168,230,255,.6)':'rgba(255,122,122,.65)';
+    ctx.beginPath();ctx.moveTo(e.sx,e.sy);ctx.lineTo(e.x,e.y);ctx.stroke();
+    ctx.fillStyle=Math.floor(t/80)%2?'#f4f0e6':'#ff7a7a';ctx.fillRect(e.x-1.5,e.y-1.5,3,3);
+  }
+  // vliegtuigen
+  for(const p of planes){
+    ctx.fillStyle=frozen?'#a8e6ff':'#ff7a7a';const d=Math.sign(p.v);
+    ctx.save();ctx.translate(p.x,p.y);ctx.scale(d,1);
+    ctx.fillRect(-12,-2,22,5);ctx.fillRect(-4,-8,6,16);ctx.fillRect(-12,-6,3,6);
+    ctx.fillStyle='#0b0f1d';ctx.fillRect(4,-1,3,2);ctx.restore();
+  }
+  // eigen raketten
+  for(const m of missiles){
+    ctx.strokeStyle=m.big?'rgba(255,179,71,.7)':'rgba(108,182,255,.7)';ctx.lineWidth=m.big?2.5:1.5;
+    ctx.beginPath();ctx.moveTo(m.sx,m.sy);ctx.lineTo(m.x,m.y);ctx.stroke();
+    ctx.fillStyle='#f4f0e6';ctx.fillRect(m.x-1.5,m.y-1.5,3,3);
+    ctx.strokeStyle=m.big?'#ffb347':'#6cb6ff';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(m.tx-4,m.ty-4);ctx.lineTo(m.tx+4,m.ty+4);ctx.moveTo(m.tx+4,m.ty-4);ctx.lineTo(m.tx-4,m.ty+4);ctx.stroke();
+  }
+  // ontploffingen, flikkerend in kleur
+  for(const b of blasts){
+    if(b.r<=0)continue;
+    ctx.fillStyle=b.own?BLAST_COL[(Math.floor(t/60)+Math.floor(b.x))%BLAST_COL.length]:'#ff7a7a';
+    ctx.globalAlpha=b.own?0.85:0.6;
+    ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  // capsules aan een parachute
+  ctx.font='600 11px Outfit, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const c of caps){
+    const [col,ch]=BONUS[c.type];
+    ctx.strokeStyle='rgba(244,240,230,.55)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(c.x-14,c.y-20);ctx.lineTo(c.x-8,c.y-6);ctx.moveTo(c.x+14,c.y-20);ctx.lineTo(c.x+8,c.y-6);ctx.stroke();
+    ctx.fillStyle='rgba(244,240,230,.8)';ctx.beginPath();ctx.arc(c.x,c.y-20,14,Math.PI,0);ctx.fill();
+    ctx.fillStyle=col;ctx.beginPath();ctx.roundRect?ctx.roundRect(c.x-14,c.y-7,28,14,7):ctx.rect(c.x-14,c.y-7,28,14);ctx.fill();
+    ctx.fillStyle='#0b0f1d';ctx.fillText(ch,c.x,c.y+0.5);
+  }
+  for(const p of parts){ctx.globalAlpha=Math.max(0,Math.min(1,p.t*2));ctx.fillStyle=p.col;ctx.fillRect(p.x-1.5,p.y-1.5,3,3);}
+  ctx.globalAlpha=1;
+  // vizier voor muis en toetsen
+  if(cross.show&&state==='play'){
+    ctx.strokeStyle='rgba(244,240,230,.8)';ctx.lineWidth=1.5;ctx.beginPath();
+    ctx.moveTo(cross.x-9,cross.y);ctx.lineTo(cross.x-3,cross.y);ctx.moveTo(cross.x+3,cross.y);ctx.lineTo(cross.x+9,cross.y);
+    ctx.moveTo(cross.x,cross.y-9);ctx.lineTo(cross.x,cross.y-3);ctx.moveTo(cross.x,cross.y+3);ctx.lineTo(cross.x,cross.y+9);ctx.stroke();
+  }
+  // balkjes die aftellen, onder in de grond
+  const bars=[];
+  if(megaT>0)bars.push(['#ff7a7a',megaT/10]);
+  if(fastT>0)bars.push(['#ffe066',fastT/10]);
+  if(freezeT>0)bars.push(['#a8e6ff',freezeT/5]);
+  bars.forEach(([col,f],i)=>{ctx.fillStyle=col;ctx.fillRect(FW/2-130+i*90,FH-12,80*Math.min(1,f),4);});
+  ctx.font='400 11px Outfit, system-ui, sans-serif';
+  if(bigBomb){ctx.fillStyle='#ffb347';ctx.fillText('Grote bom klaar: tik om te gooien',FW/2,FH-28);}
+  else if(state==='play'&&bases.every(b=>!b.alive||!b.ammo)&&(enemies.length||toSpawn)){ctx.fillStyle='#ff7a7a';ctx.fillText('Geen raketten meer',FW/2,FH-28);}
+  if(flash){
+    ctx.globalAlpha=Math.min(1,flash.t*2);ctx.fillStyle=flash.col;ctx.font='400 18px Bungee, Impact, sans-serif';
+    ctx.fillText(flash.text,FW/2,FH*0.62-(1.4-flash.t)*20);ctx.globalAlpha=1;
+  }
+  if(banner>0&&state!=='start'){
+    ctx.globalAlpha=Math.min(1,banner*2);ctx.fillStyle='#f4f0e6';ctx.font='400 32px Bungee, Impact, sans-serif';
+    ctx.fillText(bannerText,FW/2,FH*0.4);
+    ctx.fillStyle='#9097b5';ctx.font='400 16px Outfit, system-ui, sans-serif';ctx.fillText(bannerSub,FW/2,FH*0.4+34);ctx.globalAlpha=1;
+  }
+  ctx.restore();
+  ctx.strokeStyle='#2f3860';ctx.lineWidth=2/S;ctx.strokeRect(0,0,FW,FH);
+}
+
+let last=performance.now();
+function loop(t){
+  const dt=Math.min((t-last)/1000,0.033);last=t;
+  if(state==='play'||state==='over')update(dt);   // na game over vallen de laatste raketten nog uit
+  if(state!=='paused'){
+    if(flash&&(flash.t-=dt)<=0)flash=null;
+    for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=120*dt;p.t-=dt;}
+    parts=(parts||[]).filter(p=>p.t>0);
+  }
+  draw(t);
+  requestAnimationFrame(loop);
+}
+reset();state='start';requestAnimationFrame(loop);
+</script>
+
+</body></html>
