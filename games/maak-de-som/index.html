@@ -154,7 +154,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=6.3"></script>
+<script src="../../version.js?v=6.4"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -338,7 +338,8 @@ function fit(){
   const top=document.querySelector('.top').offsetHeight+$('best').offsetHeight+10;
   const availW=Math.min(innerWidth-24,520), availH=innerHeight-top-150-28;
   const gap=N>7?4:5, st=document.documentElement.style;
-  const cell=Math.floor(Math.min((availW-gap*(N-1))/N,(availH-gap*(N-1))/N,64));
+  // naast het veld blijft één vakje ruimte, zodat het 3×3-kader aan de rand ook op het scherm past
+  const cell=Math.floor(Math.min((availW-14-gap*(N+1))/(N+2),(availH-gap*(N-1))/N,64));
   st.setProperty('--n',N);st.setProperty('--gap',gap+'px');st.setProperty('--cell',Math.max(26,cell)+'px');
   drawFrame();
 }
@@ -377,15 +378,14 @@ function render(gone=[],added=[]){
   $('bomb').setAttribute('aria-pressed',aim==='bomb');$('weg').setAttribute('aria-pressed',aim==='weg');
   drawFrame();
 }
-// het kader rond het gekozen vakje en zijn buren; groen als het klopt
+// het kader rond het gekozen vakje en zijn buren: altijd 3×3, ook aan de rand; groen als het klopt
 function drawFrame(){
   const f=$('frame');
   if(state!=='play'||sel<0){f.style.display='none';return;}
-  const r=Math.floor(sel/N),c=sel%N, w=aim==='weg'?0:1, r0=Math.max(0,r-w),r1=Math.min(N-1,r+w),c0=Math.max(0,c-w),c1=Math.min(N-1,c+w);
-  const a=cells[r0*N+c0], b=cells[r1*N+c1], p=3;
+  const c=cells[sel], step=c.offsetWidth+(cells[1].offsetLeft-cells[0].offsetLeft-c.offsetWidth), w=aim==='weg'?0:1, p=3;
   f.style.display='block';
-  f.style.left=(a.offsetLeft-p)+'px';f.style.top=(a.offsetTop-p)+'px';
-  f.style.width=(b.offsetLeft+b.offsetWidth-a.offsetLeft+2*p)+'px';f.style.height=(b.offsetTop+b.offsetHeight-a.offsetTop+2*p)+'px';
+  f.style.left=(c.offsetLeft-w*step-p)+'px';f.style.top=(c.offsetTop-w*step-p)+'px';
+  f.style.width=(c.offsetWidth+2*w*step+2*p)+'px';f.style.height=(c.offsetHeight+2*w*step+2*p)+'px';
   f.className=aim?aim:grid[sel]===null&&sumAt(sel)%10===cur?'ok':'';
 }
 function say(html){$('msg').innerHTML=html;}
