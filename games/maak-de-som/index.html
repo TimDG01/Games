@@ -148,7 +148,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=6.7"></script>
+<script src="../../version.js?v=6.8"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -247,8 +247,9 @@ function place(i){
 // tegels die net verdwenen zijn blijven even staan om weg te krimpen
 let lastVals={}, fade={}, fadeTimer=null;
 
+// na elke zet kloppen de markeringen niet meer: ze horen bij het vorige cijfer en veld
 function afterMove(){
-  sel=-1;hints=[];
+  sel=-1;hints=[];marks.clear();
   if(!tileCount())return finish(true);
   if(left<=0||!spots().length)return finish(false);
   cur=nextDigit();
@@ -274,7 +275,7 @@ function finish(won){
 function mix(){
   if(state!=='play'||!jk.mix)return;
   const at=[],vals=[];grid.forEach((v,i)=>{if(v!==null){at.push(i);vals.push(v);}});
-  snapshot();jk.mix--;
+  snapshot();jk.mix--;marks.clear();
   for(let k=vals.length-1;k>0;k--){const j=rnd(k+1);[vals[k],vals[j]]=[vals[j],vals[k]];}
   at.forEach((i,k)=>grid[i]=vals[k]);
   sel=-1;hints=[];aim='';beep(440,0.08);setTimeout(()=>beep(660,0.08),70);
@@ -290,7 +291,7 @@ function toggleBomb(){
 function explode(i){
   const hit=around(i).filter(j=>grid[j]!==null);
   if(!hit.length){say('Daar ligt niets omheen.');return;}
-  snapshot();jk.bomb--;
+  snapshot();jk.bomb--;marks.clear();
   for(const j of hit)grid[j]=null;
   beep(70,0.5,'sawtooth',0.1);say('Boem! '+hit.length+(hit.length===1?' tegel':' tegels')+' weg.');
   aim='';sel=-1;hints=[];
