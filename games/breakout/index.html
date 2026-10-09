@@ -19,15 +19,18 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 #wrap{position:fixed;inset:0;touch-action:none}
 canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
 .top{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 12px);margin:0 auto;padding:0 12px;max-width:520px;height:44px;
-  display:grid;grid-template-columns:44px 1fr 1fr 1fr 44px;align-items:center;gap:6px;pointer-events:none}
+  display:grid;grid-template-columns:44px 1fr 1fr 1fr 44px 44px;align-items:center;gap:6px;pointer-events:none}
 .stat{text-align:center;line-height:1}
 .stat b{display:block;font-family:var(--display);font-weight:400;font-size:24px;font-variant-numeric:tabular-nums}
 .stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
 #lives{color:#ff7a7a;letter-spacing:.05em}
 .home{pointer-events:auto;width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
-.home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.home:focus-visible,.pause:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
 /* de terugknop blijft boven de pop-ups, zodat je altijd naar het overzicht kunt */
 .home{position:relative;z-index:5}
+.pause{pointer-events:auto;width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);
+  border:0;padding:0;font-family:var(--body);font-weight:600;font-size:15px;cursor:pointer;box-shadow:none;position:relative;z-index:5}
+.pause:active{transform:none;box-shadow:none}
 .overlay{position:absolute;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62)}
 .overlay[hidden]{display:none}
 .panel{background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:28px 24px;max-width:320px;width:100%;text-align:center;
@@ -60,13 +63,14 @@ button[hidden]{display:none}
     <div class="stat"><b id="score">0</b><span>Score</span></div>
     <div class="stat"><b id="level">1</b><span>Level</span></div>
     <div class="stat"><b id="lives">&#9829;&#9829;&#9829;</b><span>Levens</span></div>
+    <button class="pause" id="pausebtn" aria-label="Pauze">&#10074;&#10074;</button>
     <button class="sndbtn" aria-label="Geluid aan of uit"></button>
   </div>
 
   <div class="overlay" id="start">
     <div class="panel">
       <h1>Breakout</h1>
-      <p>Schuif met je vinger of muis om het plankje te bewegen en tik om de bal te lanceren. Breek alle stenen. Elk level is nieuw en een beetje moeilijker.</p>
+      <p>Schuif met je vinger of muis om het plankje te bewegen en tik om de bal te lanceren. Breek alle stenen. Elk level is nieuw en een beetje moeilijker. P of de knop rechtsboven pauzeert.</p>
       <div class="legend">
         <span><i style="background:#7bd88f">&#8596;</i>Breed</span>
         <span><i style="background:#6cb6ff">3</i>Ballen</span>
@@ -83,6 +87,13 @@ button[hidden]{display:none}
     </div>
   </div>
 
+  <div class="overlay" id="paused" hidden>
+    <div class="panel">
+      <h1>Pauze</h1>
+      <button id="resume">Verder</button>
+    </div>
+  </div>
+
   <div class="overlay" id="over" hidden>
     <div class="panel">
       <h1>Game over</h1>
@@ -96,7 +107,7 @@ button[hidden]{display:none}
   </div>
 </div>
 
-<script src="../../version.js?v=6.0"></script>
+<script src="../../version.js?v=6.1"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -334,10 +345,17 @@ function start(from){$('start').hidden=true;$('over').hidden=true;reset(from);st
 $('go').addEventListener('click',()=>start(pick));
 $('again').addEventListener('click',()=>start(pick));
 
+// pauze: knop rechtsboven, toets P of Escape, en vanzelf als je de app verlaat
+function pause(){if(state!=='play')return;state='paused';keyDir=0;$('paused').hidden=false;$('resume').focus();}
+function resume(){if(state!=='paused')return;state='play';$('paused').hidden=true;last=performance.now();}
+$('pausebtn').addEventListener('click',e=>{e.stopPropagation();e.currentTarget.blur();state==='paused'?resume():pause();});
+$('resume').addEventListener('click',resume);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
+
 // besturing: vinger of muis volgen, tik lanceert
 function aim(e){paddle&&(paddle.x=(e.clientX-fx)/S);}
 $('wrap').addEventListener('pointerdown',e=>{
-  if(state!=='play'||e.target.closest('.overlay,.home,.sndbtn'))return;
+  if(state!=='play'||e.target.closest('.overlay,.home,.sndbtn,.pause'))return;
   e.preventDefault();aim(e);launch();
 });
 $('wrap').addEventListener('pointermove',e=>{
@@ -345,6 +363,7 @@ $('wrap').addEventListener('pointermove',e=>{
   if(e.pointerType==='mouse'||e.buttons||e.pressure>0)aim(e);
 });
 addEventListener('keydown',e=>{
+  if(e.code==='KeyP'||e.code==='Escape'){if(state==='play')pause();else if(state==='paused')resume();return;}
   if(state!=='play')return;
   if(e.code==='ArrowLeft'||e.code==='KeyA'){keyDir=-1;e.preventDefault();}
   if(e.code==='ArrowRight'||e.code==='KeyD'){keyDir=1;e.preventDefault();}
@@ -418,13 +437,13 @@ function draw(t){
     ctx.fillText(flash.text,clamp(flash.x,60,FW-60),paddle.y-24-(1.2-flash.t)*30);ctx.globalAlpha=1;
   }
 
-  if(banner>0&&state==='play'){
+  if(banner>0&&state!=='start'&&state!=='over'){
     ctx.globalAlpha=Math.min(1,banner*2);
     ctx.fillStyle='#f4f0e6';ctx.font='400 40px Bungee, Impact, sans-serif';
     ctx.fillText('Level '+level,FW/2,FH*0.55);
     ctx.globalAlpha=1;
   }
-  if(state==='play'&&balls.some(b=>b.stuck)){
+  if(state!=='start'&&state!=='over'&&balls.some(b=>b.stuck)){
     ctx.fillStyle='#9097b5';ctx.font='400 15px Outfit, system-ui, sans-serif';
     ctx.fillText('Tik om te lanceren',FW/2,FH*0.55+36);
   }
@@ -434,7 +453,7 @@ let last=performance.now();
 function frame(t){
   const dt=Math.min((t-last)/1000,0.033);last=t;
   if(state==='play')update(dt);
-  for(const p of parts){p.vy+=500*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.t-=dt;}
+  if(state!=='paused')for(const p of parts){p.vy+=500*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.t-=dt;}
   parts=(parts||[]).filter(p=>p.t>0);
   draw(t);
   requestAnimationFrame(frame);
