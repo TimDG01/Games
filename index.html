@@ -59,7 +59,7 @@ footer{max-width:960px;width:100%;margin:40px auto 0;color:var(--muted);font-siz
 </main>
 <footer>Versie <span id="version"></span></footer>
 
-<script src="version.js?v=6.1"></script>
+<script src="version.js?v=6.2"></script>
 <script>
 document.getElementById('version').textContent = SITE_VERSION;
 /*
@@ -344,6 +344,25 @@ const GAMES = [
           <path d="M5 5l10 10M15 5L5 15"/><path d="M28 28l10 10M38 28L28 38"/><path d="M51 51l10 10M61 51L51 61"/><path d="M51 5l10 10M61 5L51 15"/>
         </g>
         <g stroke="#ff7a7a" stroke-width="3.5" fill="none" opacity=".45"><circle cx="33" cy="10" r="5.5"/><circle cx="10" cy="56" r="5.5"/><circle cx="56" cy="33" r="5.5"/></g>
+      </g>`
+  },
+  {
+    title: 'Maak de Som',
+    href: 'games/maak-de-som/',
+    description: 'Leg je cijfer naast de tegels. Eindigt de som van de buren op jouw cijfer, dan verdwijnen ze. Krijg jij het veld leeg?',
+    tag: 'Puzzel',
+    bestKey: 'somveld-best-normaal',
+    bestLabel: n => n === 1 ? '1 punt' : n + ' punten',
+    thumb: `
+      <rect width="160" height="90" fill="#10162a"/>
+      <g transform="translate(43 7)" font-family="Arial Black,sans-serif" font-size="8" text-anchor="middle">
+        ${[[1,1,3],[2,1,7],[3,1,3],[4,1,9],[1,2,5],[2,2,0],[3,2,8],[4,2,2],[1,3,6],[2,3,1],[3,3,4],[4,3,7]]
+          .map(([c, r, d]) => `<rect x="${c * 13}" y="${r * 13}" width="12" height="12" rx="2" fill="${['#9097b5','#8e5bd6','#a6d8b0','#ff9a52','#4f7cff','#ffe066','#4fd1c5','#5fae4a','#4a5280','#e58fd0'][d]}"/>` +
+            `<text x="${c * 13 + 6}" y="${r * 13 + 9}" fill="${[1,4,7,8].includes(d) ? '#f4f0e6' : '#0b0f1d'}">${d}</text>`).join('')}
+        ${[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[0,1],[5,1],[0,2],[5,2],[0,3],[5,3],[0,4],[1,4],[3,4],[4,4],[5,4]]
+          .map(([c, r]) => `<rect x="${c * 13}" y="${r * 13}" width="12" height="12" rx="2" fill="#1a2140"/>`).join('')}
+        <rect x="26" y="52" width="12" height="12" rx="2" fill="#2f3860"/><text x="32" y="61" fill="#f4f0e6" opacity=".6">1</text>
+        <rect x="11.5" y="37.5" width="41" height="28" rx="3" fill="none" stroke="#7bd88f" stroke-width="1.5"/>
       </g>`
   },
 ];

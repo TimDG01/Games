@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Maak de Som</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;600&display=swap">
+<style>
+/* Layout: tellers bovenaan, raster in het midden, je cijfer en de knoppen eronder, panelen erover */
+:root{
+  --bg:#141a2e; --bg-deep:#0b0f1d; --fg:#f4f0e6; --muted:#9097b5; --accent:#ffb347; --panel:#1d2440;
+  --display:'Bungee', Impact, 'Arial Black', sans-serif;
+  --body:'Outfit', system-ui, -apple-system, sans-serif;
+  --cell:40px; --n:9; --gap:4px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+  padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 14px)}
+.top{width:100%;max-width:520px;height:44px;display:grid;grid-template-columns:40px 1fr 1fr 1fr 40px 40px;align-items:center;gap:6px}
+.stat{text-align:center;line-height:1}
+.stat b{display:block;font-family:var(--display);font-weight:400;font-size:24px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
+#best{margin-top:6px;font-size:13px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;text-align:center}
+.home{width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
+.home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.restart{width:40px;height:40px;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);border:0;font-size:20px;cursor:pointer;padding:0}
+/* de terugknop blijft boven de pop-ups, zodat je altijd naar het overzicht kunt */
+.home{position:relative;z-index:5}
+.stage{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:0}
+
+#board{position:relative;display:grid;grid-template-columns:repeat(var(--n),var(--cell));gap:var(--gap);touch-action:none}
+.cell{width:var(--cell);height:var(--cell);border-radius:calc(var(--cell) * .14);display:grid;place-items:center;
+  font-family:var(--display);font-size:calc(var(--cell) * .56);line-height:1;color:#0b0f1d;position:relative}
+.cell.empty{background:#1a2140;box-shadow:inset 0 0 0 1px #232b4d}
+.cell.open{background:#222a4c;cursor:pointer;box-shadow:inset 0 0 0 1px #2f3860}
+.cell.tile{box-shadow:inset 0 -3px 0 rgba(11,15,29,.3), inset 0 2px 0 rgba(255,255,255,.18)}
+.cell.light{color:#f4f0e6}
+.cell.ghost{color:rgba(244,240,230,.55);background:#2f3860}
+.cell.hint{animation:hint 1s ease-in-out infinite}
+@keyframes hint{50%{background:#4a5590}}
+.cell.out{animation:out .28s ease-in forwards}
+@keyframes out{to{transform:scale(.2);opacity:0}}
+.cell.in{animation:in .18s ease-out}
+@keyframes in{from{transform:scale(.6)}}
+.cell.boomable{cursor:crosshair}
+/* kader rond het vakje en zijn buren */
+#frame{position:absolute;border:3px solid #ff7a7a;border-radius:8px;pointer-events:none;display:none}
+#frame.ok{border-color:#7bd88f}
+#frame.bomb{border-color:#ffb347;border-style:dashed}
+
+.dock{width:100%;max-width:520px;display:flex;flex-direction:column;gap:12px;align-items:center}
+.now{display:flex;align-items:center;gap:14px;width:100%;justify-content:center;min-height:64px}
+#cur{width:60px;height:60px;border-radius:9px;display:grid;place-items:center;font-family:var(--display);font-size:34px;color:#0b0f1d;flex:none;
+  box-shadow:inset 0 -4px 0 rgba(11,15,29,.3), inset 0 2px 0 rgba(255,255,255,.18)}
+#cur.light{color:#f4f0e6}
+#msg{flex:1;max-width:300px;font-size:16px;line-height:1.35;color:var(--muted);min-height:44px;display:flex;align-items:center}
+#msg b{color:var(--fg);font-weight:600}
+#msg .ok{color:#7bd88f} #msg .no{color:#ff7a7a}
+.tools{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%;max-width:360px}
+.tools button{position:relative;font-family:var(--body);font-weight:600;font-size:13px;color:var(--fg);background:#2a3358;border:0;border-radius:6px;
+  padding:8px 4px 7px;cursor:pointer;box-shadow:0 4px 0 #1a2140;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tools button i{font-style:normal;font-size:20px;line-height:1.1}
+.tools button:active{transform:translateY(3px);box-shadow:0 1px 0 #1a2140}
+.tools button:disabled{opacity:.35;cursor:default;transform:none;box-shadow:0 4px 0 #1a2140}
+.tools button[aria-pressed="true"]{background:var(--accent);color:var(--bg-deep);box-shadow:0 4px 0 #b86e14}
+.tools button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.tools sup{position:absolute;top:-6px;right:-4px;min-width:20px;height:20px;border-radius:10px;background:var(--accent);color:var(--bg-deep);
+  font-size:12px;line-height:20px;padding:0 5px}
+.tools button[aria-pressed="true"] sup{background:var(--bg-deep);color:var(--accent)}
+
+.overlay{position:fixed;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62);overflow-y:auto}
+.overlay[hidden]{display:none}
+.panel{background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:28px 24px;max-width:340px;width:100%;text-align:center;
+  display:flex;flex-direction:column;gap:14px;box-shadow:8px 8px 0 var(--bg-deep);margin:16px 0}
+.panel h1{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.05;margin:0;text-wrap:balance}
+.panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.45}
+.panel p b{color:var(--fg);font-weight:600}
+.ver{font-size:12px;color:var(--muted);letter-spacing:.08em}
+.big{font-family:var(--display);font-size:56px;line-height:1;color:var(--accent)}
+.panel > button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
+  padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
+.panel > button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+.levels{display:flex;gap:6px}
+.levels button{flex:1;font-family:var(--display);font-size:13px;padding:10px 2px;color:var(--fg);background:transparent;border:2px solid #2f3860;border-radius:4px;cursor:pointer}
+.levels button[aria-pressed="true"]{color:var(--bg-deep);background:var(--accent);border-color:var(--accent)}
+.example{display:flex;justify-content:center;gap:4px}
+.example span{width:30px;height:30px;border-radius:5px;display:grid;place-items:center;font-family:var(--display);font-size:17px;color:#0b0f1d}
+</style>
+</head><body>
+
+<div id="wrap">
+  <div class="top">
+    <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
+    <div class="stat"><b id="score">0</b><span>Score</span></div>
+    <div class="stat"><b id="left">35</b><span>Cijfers</span></div>
+    <div class="stat"><b id="tiles">49</b><span>Tegels</span></div>
+    <button class="sndbtn" aria-label="Geluid aan of uit"></button>
+    <button class="restart" id="restart" aria-label="Opnieuw beginnen of moeilijkheid kiezen">&#8635;</button>
+  </div>
+  <div id="best">Record –</div>
+  <div class="stage">
+    <div id="board" aria-label="Speelveld"><div id="frame"></div></div>
+    <div class="dock">
+      <div class="now">
+        <div id="cur" aria-label="Jouw cijfer">3</div>
+        <div id="msg" aria-live="polite"></div>
+      </div>
+      <div class="tools">
+        <button id="swap" aria-label="Ander cijfer, kost één cijfer"><i>&#8644;</i>Ander</button>
+        <button id="bomb" aria-pressed="false" aria-label="Bom"><i>&#10040;</i>Bom<sup id="bombs">1</sup></button>
+        <button id="hint" aria-label="Hint"><i>?</i>Hint<sup id="hints">3</sup></button>
+        <button id="undo" aria-label="Zet terugnemen"><i>&#8630;</i>Terug</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="start">
+    <div class="panel">
+      <h1>Maak de Som</h1>
+      <p>Leg jouw cijfer op een leeg vakje naast de tegels. Tel de tegels eromheen op, ook de schuine. Eindigt de som op <b>jouw cijfer</b>? Dan verdwijnen die tegels.</p>
+      <div class="example" aria-hidden="true">
+        <span style="background:#ff9a52">3</span><span style="background:#5fae4a;color:#f4f0e6">7</span><span style="background:#ff9a52">3</span>
+      </div>
+      <p>3 + 7 + 3 = 1<b>3</b>, dus een <b>3</b> eronder ruimt ze op. Klopt het niet, dan blijft je cijfer liggen als nieuwe tegel. Maak het veld leeg voor je cijfers op zijn.</p>
+      <p>Tik één keer om te kijken, nog een keer om te leggen.</p>
+      <div class="levels" role="group" aria-label="Moeilijkheid">
+        <button data-level="makkelijk">Makkelijk</button>
+        <button data-level="normaal">Normaal</button>
+        <button data-level="moeilijk">Moeilijk</button>
+      </div>
+      <button id="go">Start</button>
+      <div class="ver">Versie <span id="ver"></span></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="over" hidden>
+    <div class="panel">
+      <h1 id="overtitle">Veld leeg!</h1>
+      <div class="big" id="final">0</div>
+      <p id="overmsg">punten</p>
+      <div class="levels" role="group" aria-label="Moeilijkheid">
+        <button data-level="makkelijk">Makkelijk</button>
+        <button data-level="normaal">Normaal</button>
+        <button data-level="moeilijk">Moeilijk</button>
+      </div>
+      <button id="again">Opnieuw</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../version.js?v=6.2"></script>
+<script>
+const $=id=>document.getElementById(id);
+try{$('ver').textContent=SITE_VERSION}catch(e){}
+
+/* moeilijkheid
+   core: zoveel × zoveel tegels in het midden, met een lege rand eromheen
+   digits: cijfers die je krijgt, help: kans dat je volgende cijfer ergens past, bombs/hints: hulpjes per spel */
+const LEVELS={
+  makkelijk:{name:'Makkelijk',core:5,digits:25,help:0.8,bombs:2,hints:5},
+  normaal:  {name:'Normaal',  core:7,digits:35,help:0.6,bombs:1,hints:3},
+  moeilijk: {name:'Moeilijk', core:7,digits:28,help:0.35,bombs:1,hints:1},
+};
+// elk cijfer zijn eigen kleur; 'light' krijgt witte letters
+const COL=['#9097b5','#8e5bd6','#a6d8b0','#ff9a52','#4f7cff','#ffe066','#4fd1c5','#5fae4a','#4a5280','#e58fd0'];
+const LIGHT=[false,true,false,false,true,false,false,true,true,false];
+const bestKey=l=>'somveld-best-'+l;
+
+let level='normaal'; try{const l=localStorage.getItem('somveld-level');if(LEVELS[l])level=l;}catch(e){}
+let L=LEVELS[level], best=0;
+let N, grid, cur, left, score, bombs, hints, history, sel=-1, hintAt=-1, bombMode=false, state='start', cells=[];
+
+function setLevel(l){
+  level=l;L=LEVELS[l];try{localStorage.setItem('somveld-level',l)}catch(e){}
+  best=0;try{best=+localStorage.getItem(bestKey(l))||0}catch(e){}
+  showBest();
+  document.querySelectorAll('[data-level]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.level===l));
+}
+function showBest(){$('best').textContent='Record '+(best||'–')+' · '+L.name;}
+document.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',()=>setLevel(b.dataset.level)));
+
+/* geluid: kleine piep, start pas na de eerste tik */
+let ac=null;
+function beep(f,d=0.08,type='triangle',v=0.1){
+  if(window.SITE_SOUND&&!SITE_SOUND.on)return;   // geluid uitgezet
+  try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+d);
+    o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d);}catch(e){}
+}
+
+/* --- regels --- */
+const rnd=n=>Math.floor(Math.random()*n);
+// de buren van een vakje: de 8 vakjes eromheen, binnen het veld
+function around(i){
+  const r=Math.floor(i/N),c=i%N,out=[];
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(!dr&&!dc)continue;const rr=r+dr,cc=c+dc;
+    if(rr>=0&&rr<N&&cc>=0&&cc<N)out.push(rr*N+cc);
+  }
+  return out;
+}
+const tilesAround=i=>around(i).filter(j=>grid[j]!==null);
+// je mag leggen op een leeg vakje dat minstens één tegel raakt
+const canPlace=i=>grid[i]===null&&tilesAround(i).length>0;
+const sumAt=i=>tilesAround(i).reduce((s,j)=>s+grid[j],0);
+const tileCount=()=>grid.filter(v=>v!==null).length;
+function spots(){const s=[];for(let i=0;i<N*N;i++)if(canPlace(i))s.push(i);return s;}
+// het volgende cijfer: vaak eentje dat ergens past, anders een willekeurig cijfer
+function nextDigit(){
+  const s=spots();
+  if(s.length&&Math.random()<L.help)return sumAt(s[rnd(s.length)])%10;
+  return rnd(10);
+}
+
+function newGame(){
+  N=L.core+2;grid=Array(N*N).fill(null);
+  for(let r=1;r<=L.core;r++)for(let c=1;c<=L.core;c++)grid[r*N+c]=rnd(10);
+  fade={};left=L.digits;score=0;bombs=L.bombs;hints=L.hints;history=[];sel=-1;hintAt=-1;bombMode=false;
+  cur=nextDigit();
+  buildBoard();render();
+  say('Tik een leeg vakje naast de tegels.');
+}
+
+function snapshot(){history.push({grid:grid.slice(),cur,left,score,bombs});if(history.length>200)history.shift();}
+
+function place(i){
+  const nb=tilesAround(i), sum=nb.reduce((s,j)=>s+grid[j],0), d=cur;
+  const txt=nb.map(j=>grid[j]).join(' + ')+' = '+sum+(sum%10===d?' ✓':' ✗');
+  snapshot();left--;
+  if(sum%10===d){
+    // raak: de buren verdwijnen, en je eigen cijfer ook
+    for(const j of nb)grid[j]=null;
+    const pts=nb.length*nb.length*10;score+=pts;
+    render(nb.concat([i]),[]);
+    say(`<span class="ok">${txt}</span> · <b>+${pts}</b>`);
+    [523,659,784,1047].slice(0,Math.min(4,1+Math.floor(nb.length/2))).forEach((f,k)=>setTimeout(()=>beep(f,0.1),k*80));
+  }else{
+    grid[i]=d;
+    render([],[i]);
+    say(`<span class="no">${txt}</span> · je ${d} blijft liggen`);
+    beep(200,0.12,'square',0.05);
+  }
+  afterMove();
+}
+// tegels die net verdwenen zijn blijven even staan om weg te krimpen
+let lastVals={}, fade={}, fadeTimer=null;
+
+function afterMove(){
+  sel=-1;hintAt=-1;
+  if(!tileCount())return finish(true);
+  if(left<=0||!spots().length)return finish(false);
+  cur=nextDigit();
+  render();
+}
+
+function finish(won){
+  state='over';sel=-1;render();
+  if(won){score+=500+left*100;}
+  $('score').textContent=score;
+  const rec=score>best;
+  if(rec){best=score;try{localStorage.setItem(bestKey(level),best)}catch(e){}showBest();}
+  $('overtitle').textContent=won?'Veld leeg!':'Geen cijfers meer';
+  $('final').textContent=score;
+  $('overmsg').textContent=(score===1?'punt':'punten')+(won?' · '+left+' cijfers over':' · nog '+tileCount()+' tegels')+' · '+L.name+(rec&&score>0?' · nieuw record!':'');
+  if(won)[523,659,784,1047,1319].forEach((f,k)=>setTimeout(()=>beep(f,0.14),k*110));
+  else [392,330,262].forEach((f,k)=>setTimeout(()=>beep(f,0.14),k*130));
+  setTimeout(()=>{$('over').hidden=false;$('again').focus();},900);
+}
+
+/* --- hulpjes --- */
+function swap(){
+  if(state!=='play'||left<=1)return;
+  snapshot();left--;
+  let d=nextDigit();if(d===cur)d=nextDigit();cur=d;
+  sel=-1;hintAt=-1;bombMode=false;beep(440,0.08);
+  say('Nieuw cijfer, dat kostte er één.');render();
+}
+function toggleBomb(){
+  if(state!=='play'||!bombs)return;
+  bombMode=!bombMode;sel=-1;hintAt=-1;
+  say(bombMode?'Tik waar de bom moet vallen: het vakje en alles eromheen is weg.':'Bom weggelegd.');
+  render();
+}
+function dropBomb(i){
+  snapshot();bombs--;bombMode=false;
+  const hit=[i,...around(i)].filter(j=>grid[j]!==null);
+  for(const j of hit)grid[j]=null;
+  beep(70,0.5,'sawtooth',0.1);
+  render(hit,[]);say('Boem! '+hit.length+(hit.length===1?' tegel':' tegels')+' weg.');
+  sel=-1;hintAt=-1;
+  if(!tileCount())return finish(true);
+  if(!spots().length)return finish(false);
+  render();
+}
+function hint(){
+  if(state!=='play'||!hints)return;
+  const good=spots().filter(i=>sumAt(i)%10===cur);
+  bombMode=false;
+  if(!good.length){say('Je '+cur+' past nergens. Kies een ander cijfer of leg hem ergens neer.');render();return;}
+  hints--;
+  // het vakje dat de meeste tegels opruimt
+  good.sort((a,b)=>tilesAround(b).length-tilesAround(a).length);
+  hintAt=good[0];sel=-1;beep(880,0.1,'sine');
+  say('Probeer het knipperende vakje.');render();
+}
+function undo(){
+  if(state!=='play'||!history.length)return;
+  const h=history.pop();
+  grid=h.grid;cur=h.cur;left=h.left;score=h.score;bombs=h.bombs;
+  sel=-1;hintAt=-1;bombMode=false;beep(330,0.06);
+  say('Zet teruggenomen.');render();
+}
+$('swap').addEventListener('click',swap);
+$('bomb').addEventListener('click',toggleBomb);
+$('hint').addEventListener('click',hint);
+$('undo').addEventListener('click',undo);
+
+/* --- tekenen --- */
+function fit(){
+  if(!N)return;
+  const top=document.querySelector('.top').offsetHeight+$('best').offsetHeight+10;
+  const availW=Math.min(innerWidth-24,520), availH=innerHeight-top-150-28;
+  const gap=N>7?4:5, st=document.documentElement.style;
+  const cell=Math.floor(Math.min((availW-gap*(N-1))/N,(availH-gap*(N-1))/N,64));
+  st.setProperty('--n',N);st.setProperty('--gap',gap+'px');st.setProperty('--cell',Math.max(26,cell)+'px');
+  drawFrame();
+}
+addEventListener('resize',fit);
+
+function buildBoard(){
+  const b=$('board');cells.forEach(c=>c.remove());cells=[];
+  for(let i=0;i<N*N;i++){const c=document.createElement('div');c.className='cell';c.dataset.i=i;b.appendChild(c);cells.push(c);}
+  fit();
+}
+
+// gone: tegels die net verdwijnen (even zichtbaar met animatie), added: net neergelegd
+function render(gone=[],added=[]){
+  for(const i of gone)if(lastVals[i]!=null)fade[i]=lastVals[i];
+  if(gone.length){clearTimeout(fadeTimer);fadeTimer=setTimeout(()=>{fade={};render();},300);}
+  for(let i=0;i<N*N;i++){
+    const c=cells[i], v=grid[i];
+    if(v===null&&fade[i]!=null){
+      if(!c.classList.contains('out')){c.className='cell tile out'+(LIGHT[fade[i]]?' light':'');c.style.background=COL[fade[i]];c.textContent=fade[i];}
+      continue;
+    }
+    if(v===null){
+      const open=state==='play'&&!bombMode&&canPlace(i);
+      c.style.background='';c.textContent=i===sel&&state==='play'?cur:'';
+      c.className='cell '+(i===sel&&state==='play'?'ghost':open?'open':'empty')+(i===hintAt?' hint':'')+(bombMode?' boomable':'');
+    }else{
+      c.className='cell tile'+(LIGHT[v]?' light':'')+(added.includes(i)?' in':'')+(bombMode?' boomable':'');
+      c.style.background=COL[v];c.textContent=v;
+    }
+  }
+  lastVals={};grid.forEach((v,i)=>{if(v!==null)lastVals[i]=v;});
+  $('cur').textContent=cur;$('cur').style.background=COL[cur];$('cur').className=LIGHT[cur]?'light':'';
+  $('score').textContent=score;$('left').textContent=left;$('tiles').textContent=tileCount();
+  $('bombs').textContent=bombs;$('hints').textContent=hints;
+  $('bomb').disabled=!bombs||state!=='play';$('hint').disabled=!hints||state!=='play';
+  $('swap').disabled=left<=1||state!=='play';$('undo').disabled=!history.length||state!=='play';
+  $('bomb').setAttribute('aria-pressed',bombMode);
+  drawFrame();
+}
+// het kader rond het gekozen vakje en zijn buren; groen als het klopt
+function drawFrame(){
+  const f=$('frame');
+  if(state!=='play'||sel<0){f.style.display='none';return;}
+  const r=Math.floor(sel/N),c=sel%N, r0=Math.max(0,r-1),r1=Math.min(N-1,r+1),c0=Math.max(0,c-1),c1=Math.min(N-1,c+1);
+  const a=cells[r0*N+c0], b=cells[r1*N+c1], p=3;
+  f.style.display='block';
+  f.style.left=(a.offsetLeft-p)+'px';f.style.top=(a.offsetTop-p)+'px';
+  f.style.width=(b.offsetLeft+b.offsetWidth-a.offsetLeft+2*p)+'px';f.style.height=(b.offsetTop+b.offsetHeight-a.offsetTop+2*p)+'px';
+  f.className=bombMode?'bomb':grid[sel]===null&&sumAt(sel)%10===cur?'ok':'';
+}
+function say(html){$('msg').innerHTML=html;}
+function preview(i){
+  const nb=tilesAround(i), sum=nb.reduce((s,j)=>s+grid[j],0), ok=sum%10===cur;
+  say(`<span class="${ok?'ok':'no'}">${nb.map(j=>grid[j]).join(' + ')} = ${sum}${ok?' ✓':' ✗'}</span> · tik nog eens om te leggen`);
+}
+
+/* --- besturing: tik om te kijken, nog een keer om te leggen; met de muis kijk je al door erover te gaan --- */
+function cellAt(e){const c=e.target.closest&&e.target.closest('.cell');return c?+c.dataset.i:-1;}
+$('board').addEventListener('pointerdown',e=>{
+  if(state!=='play')return;
+  const i=cellAt(e);if(i<0)return;
+  e.preventDefault();
+  if(bombMode){
+    if(sel===i||e.pointerType==='mouse')dropBomb(i);
+    else{sel=i;render();say('Tik nog eens om de bom hier te laten vallen.');}
+    return;
+  }
+  if(!canPlace(i))return;
+  if(sel===i)return place(i);
+  sel=i;render();preview(i);beep(600,0.03,'sine',0.05);
+});
+$('board').addEventListener('pointermove',e=>{
+  if(state!=='play'||e.pointerType!=='mouse')return;
+  const i=cellAt(e);
+  if(i<0||i===sel)return;
+  if(bombMode){sel=i;render();return;}
+  if(!canPlace(i))return;
+  sel=i;render();preview(i);
+});
+$('board').addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&state==='play'&&sel>=0){sel=-1;render();}});
+addEventListener('keydown',e=>{
+  if(state!=='play')return;
+  if(e.code==='KeyZ'||e.code==='Backspace'){undo();e.preventDefault();}
+  if(e.code==='KeyH')hint();
+  if(e.code==='KeyB')toggleBomb();
+  if(e.code==='KeyN')swap();
+});
+
+function start(){
+  $('start').hidden=true;$('over').hidden=true;state='play';newGame();beep(520,0.08);
+}
+$('go').addEventListener('click',start);
+$('again').addEventListener('click',start);
+$('restart').addEventListener('click',()=>{state='start';sel=-1;bombMode=false;render();$('start').hidden=false;$('go').focus();});
+
+setLevel(level);
+newGame();state='start';render();
+</script>
+
+</body></html>
