@@ -45,6 +45,15 @@ button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background
   padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
 button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
 button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+/* lage schermen: alles iets compacter, zodat de startknop zichtbaar blijft (scrollen kan niet in de games) */
+@media (max-height:740px){
+  .panel{padding:18px 18px;gap:9px;margin:8px 0}
+  .panel h1{font-size:26px}
+  .panel p{font-size:15px;line-height:1.35}
+  .legend{gap:3px 8px;font-size:12px}
+  .levels button{padding:8px 2px}
+  .panel > button#go,.panel > button#again{padding:11px 18px}
+}
 .levels{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .levels button{font-size:13px;padding:10px 2px;color:var(--fg);background:transparent;border:2px solid #2f3860;box-shadow:none}
 .levels button:active{transform:none;box-shadow:none}
@@ -67,8 +76,8 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   <div class="overlay" id="start">
     <div class="panel">
       <h1>Raketschild</h1>
-      <p>Raketten vallen op je steden. Tik waar je ze wilt opvangen: je eigen raket vliegt erheen en ontploft daar. Alles in de ontploffing is weg. Mik een beetje vóór de raket uit.</p>
-      <p>Schiet de capsules aan een parachute kapot. De bonus komt onderaan te staan: tik erop om hem te gebruiken wanneer jij wilt. Op de computer: klikken, of pijltjes en spatie, en 1 tot 8 voor de bonussen. P pauzeert.</p>
+      <p>Tik waar je de vallende raketten wilt opvangen: je raket ontploft daar. Mik een beetje vóór ze uit.</p>
+      <p>Schiet de capsules kapot; de bonus komt onderaan, tik erop wanneer jij wilt. Computer: klik of pijltjes en spatie, 1–8 voor bonussen, P pauzeert.</p>
       <div class="legend" id="legend"></div>
       <div class="levels" role="group" aria-label="Moeilijkheid">
         <button data-level="makkelijk">Gemakkelijk</button>
@@ -105,7 +114,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=6.6"></script>
+<script src="../../version.js?v=6.7"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);

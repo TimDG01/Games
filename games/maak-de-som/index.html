@@ -127,14 +127,12 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   <div class="overlay" id="start">
     <div class="panel">
       <h1>Maak de Som</h1>
-      <p>Leg jouw cijfer op een leeg vakje naast de tegels. Tel de tegels eromheen op, ook de schuine. Eindigt de som op <b>jouw cijfer</b>? Dan verdwijnen die tegels.</p>
+      <p>Leg jouw cijfer naast de tegels. Eindigt de som van de tegels eromheen (ook schuin) op <b>jouw cijfer</b>, dan verdwijnen ze.</p>
       <div class="example" aria-hidden="true">
         <span style="background:#ff9a52">3</span><span style="background:#5fae4a;color:#f4f0e6">7</span><span style="background:#ff9a52">3</span>
       </div>
-      <p>3 + 7 + 3 = 1<b>3</b>, dus een <b>3</b> eronder ruimt ze op. Klopt het niet, dan blijft je cijfer liggen als nieuwe tegel. Maak het veld leeg: je hebt maar <b>50 cijfers</b>.</p>
-      <p><b>Tik</b> een leeg vakje om je som te zien. <b>Druk lang</b> op dat vakje om te leggen.</p>
-      <p>Elke joker mag <b>één keer</b> per spel: <b>hussel</b> alle tegels, de <b>bom</b> komt in je cijfervak: tik een leeg vakje en druk lang om alles eromheen te laten ontploffen (tik op de bom om te annuleren), <b>weg</b> haalt je cijfer en alle tegels met hetzelfde cijfer weg, <b>terug</b> neemt een zet terug, en de <b>hint</b> toont alle goede vakjes.</p>
-      <p>Met <b>markeer</b> zet je een stip op het vakje dat je bekijkt, om het te onthouden. Lang drukken op markeer wist alle stippen. Lang drukken op het record wist je record.</p>
+      <p>3 + 7 + 3 = 1<b>3</b>: een <b>3</b> eronder ruimt ze op. Anders blijft je cijfer liggen. Je hebt <b>50 cijfers</b>.</p>
+      <p><b>Tik</b> om te kijken, <b>druk lang</b> om te leggen. Elke joker mag één keer. Lang drukken op <b>markeer</b> of op het <b>record</b> wist het.</p>
       <button id="go">Start</button>
       <div class="ver">Versie <span id="ver"></span></div>
     </div>
@@ -150,7 +148,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=6.6"></script>
+<script src="../../version.js?v=6.7"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}

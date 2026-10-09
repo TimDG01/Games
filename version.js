@@ -1,5 +1,5 @@
 // Versie van de site. Verhoog met tools/bump-version.sh, dat ook de verwijzingen in alle pagina's bijwerkt.
-const SITE_VERSION = '6.6';
+const SITE_VERSION = '6.7';
 
 // Staat er online al een nieuwere versie? Dan meteen de verse pagina laden, één keer per versie.
 (function(){
@@ -47,6 +47,8 @@ const SITE_VERSION = '6.6';
       document.addEventListener('touchcancel',()=>{start=null;});
       // knijpen om te zoomen tegenhouden (Safari)
       for(const ev of['gesturestart','gesturechange'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
+      // geen menu bij lang drukken (Android toont dat soms toch)
+      document.addEventListener('contextmenu',e=>{if(!native(e.target))e.preventDefault();});
       return;
     }
     document.addEventListener('touchstart',e=>{
