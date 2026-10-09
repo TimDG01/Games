@@ -23,7 +23,7 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 .stat{text-align:center;line-height:1}
 .stat b{display:block;font-family:var(--display);font-weight:400;font-size:24px;font-variant-numeric:tabular-nums}
 .stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
-#best{margin-top:6px;font-size:13px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;text-align:center}
+#best{cursor:default;margin-top:6px;font-size:13px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;text-align:center}
 .home{width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
 .home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
 .restart{width:40px;height:40px;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);border:0;font-size:20px;cursor:pointer;padding:0}
@@ -59,6 +59,9 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 #cur{width:60px;height:60px;border-radius:9px;display:grid;place-items:center;font-family:var(--display);font-size:34px;color:#0b0f1d;flex:none;
   box-shadow:inset 0 -4px 0 rgba(11,15,29,.3), inset 0 2px 0 rgba(255,255,255,.18)}
 #cur.light{color:#f4f0e6}
+#cur.bomb{background:var(--accent);color:var(--bg-deep);cursor:pointer;font-size:30px}
+/* lang drukken: het vakje krimpt tot de zet geldt */
+.cell.press{transform:scale(.82);transition:transform .5s ease-in}
 #msg{flex:1;max-width:300px;font-size:16px;line-height:1.35;color:var(--muted);min-height:44px;display:flex;align-items:center}
 #msg b{color:var(--fg);font-weight:600}
 #msg .ok{color:#7bd88f} #msg .no{color:#ff7a7a}
@@ -88,9 +91,6 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
   padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
 .panel > button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
 button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
-.levels{display:flex;gap:6px}
-.levels button{flex:1;font-family:var(--display);font-size:13px;padding:10px 2px;color:var(--fg);background:transparent;border:2px solid #2f3860;border-radius:4px;cursor:pointer}
-.levels button[aria-pressed="true"]{color:var(--bg-deep);background:var(--accent);border-color:var(--accent)}
 .example{display:flex;justify-content:center;gap:4px}
 .example span{width:30px;height:30px;border-radius:5px;display:grid;place-items:center;font-family:var(--display);font-size:17px;color:#0b0f1d}
 </style>
@@ -132,14 +132,9 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
         <span style="background:#ff9a52">3</span><span style="background:#5fae4a;color:#f4f0e6">7</span><span style="background:#ff9a52">3</span>
       </div>
       <p>3 + 7 + 3 = 1<b>3</b>, dus een <b>3</b> eronder ruimt ze op. Klopt het niet, dan blijft je cijfer liggen als nieuwe tegel. Maak het veld leeg: je hebt maar <b>50 cijfers</b>.</p>
-      <p>Tik één keer op een leeg vakje om te kijken, nog een keer om te leggen.</p>
-      <p>Elke joker mag <b>één keer</b> per spel: <b>hussel</b> alle tegels, een <b>bom</b> op een leeg vakje laat alles eromheen ontploffen, <b>weg</b> haalt je cijfer en alle tegels met hetzelfde cijfer weg, <b>terug</b> neemt een zet terug, en de <b>hint</b> toont alle goede vakjes.</p>
-      <p>Met <b>markeer</b> zet je een stip op het vakje dat je bekijkt, om het te onthouden. Lang drukken op markeer wist alle stippen.</p>
-      <div class="levels" role="group" aria-label="Moeilijkheid">
-        <button data-level="makkelijk">Makkelijk</button>
-        <button data-level="normaal">Normaal</button>
-        <button data-level="moeilijk">Moeilijk</button>
-      </div>
+      <p><b>Tik</b> een leeg vakje om je som te zien. <b>Druk lang</b> op dat vakje om te leggen.</p>
+      <p>Elke joker mag <b>één keer</b> per spel: <b>hussel</b> alle tegels, de <b>bom</b> komt in je cijfervak: tik een leeg vakje en druk lang om alles eromheen te laten ontploffen (tik op de bom om te annuleren), <b>weg</b> haalt je cijfer en alle tegels met hetzelfde cijfer weg, <b>terug</b> neemt een zet terug, en de <b>hint</b> toont alle goede vakjes.</p>
+      <p>Met <b>markeer</b> zet je een stip op het vakje dat je bekijkt, om het te onthouden. Lang drukken op markeer wist alle stippen. Lang drukken op het record wist je record.</p>
       <button id="go">Start</button>
       <div class="ver">Versie <span id="ver"></span></div>
     </div>
@@ -150,49 +145,41 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
       <h1 id="overtitle">Veld leeg!</h1>
       <div class="big" id="final">0</div>
       <p id="overmsg">punten</p>
-      <div class="levels" role="group" aria-label="Moeilijkheid">
-        <button data-level="makkelijk">Makkelijk</button>
-        <button data-level="normaal">Normaal</button>
-        <button data-level="moeilijk">Moeilijk</button>
-      </div>
       <button id="again">Opnieuw</button>
     </div>
   </div>
 </div>
 
-<script src="../../version.js?v=6.5"></script>
+<script src="../../version.js?v=6.6"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
 
-/* moeilijkheid
-   core: zoveel × zoveel tegels in het midden, met een lege rand eromheen
-   digits: cijfers die je krijgt, help: kans dat je volgende cijfer ergens past
-   zoals in het origineel: 50 cijfers en elke joker één keer per spel */
+/* zoals in het origineel: 7 × 7 tegels met een lege rand eromheen, 50 cijfers en elke joker één keer per spel
+   help: kans dat je volgende cijfer ergens past */
 const JOKERS=['mix','bomb','weg','undo','hint'];
-const LEVELS={
-  makkelijk:{name:'Makkelijk',core:5,digits:50,help:0.8},
-  normaal:  {name:'Normaal',  core:7,digits:50,help:0.6},
-  moeilijk: {name:'Moeilijk', core:7,digits:50,help:0.35},
-};
+const L={core:7,digits:50,help:0.6};
 // elk cijfer zijn eigen kleur; 'light' krijgt witte letters
 const COL=['#9097b5','#8e5bd6','#a6d8b0','#ff9a52','#4f7cff','#ffe066','#4fd1c5','#5fae4a','#4a5280','#e58fd0'];
 const LIGHT=[false,true,false,false,true,false,false,true,true,false];
-const bestKey=l=>'somveld-best-'+l;
+const BEST_KEY='somveld-best-normaal';
 
-let level='normaal'; try{const l=localStorage.getItem('somveld-level');if(LEVELS[l])level=l;}catch(e){}
-let L=LEVELS[level], best=0;
+let best=0; try{best=+localStorage.getItem(BEST_KEY)||0}catch(e){}
 // aim: '' gewoon leggen, 'bomb' als je de bom gaat leggen; hints: vakjes die knipperen; marks: gemarkeerde vakjes
 let N, grid, cur, left, score, jk, history, sel=-1, hints=[], marks=new Set(), aim='', state='start', cells=[];
 
-function setLevel(l){
-  level=l;L=LEVELS[l];try{localStorage.setItem('somveld-level',l)}catch(e){}
-  best=0;try{best=+localStorage.getItem(bestKey(l))||0}catch(e){}
-  showBest();
-  document.querySelectorAll('[data-level]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.level===l));
+function showBest(){$('best').textContent='Record '+(best||'–');}
+// lang drukken op het record wist het
+onLongPress($('best'),()=>{
+  if(!best)return;
+  best=0;try{localStorage.removeItem(BEST_KEY)}catch(e){}
+  showBest();beep(300,0.15);if(state==='play')say('Record gewist.');
+});
+function onLongPress(el,fn){
+  let t=null;
+  el.addEventListener('pointerdown',()=>{clearTimeout(t);t=setTimeout(fn,600);});
+  ['pointerup','pointerleave','pointercancel'].forEach(k=>el.addEventListener(k,()=>clearTimeout(t)));
 }
-function showBest(){$('best').textContent='Record '+(best||'–')+' · '+L.name;}
-document.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',()=>setLevel(b.dataset.level)));
 
 /* geluid: kleine piep, start pas na de eerste tik */
 let ac=null;
@@ -275,10 +262,10 @@ function finish(won){
   if(won){score+=500+left*100;}
   $('score').textContent=score;
   const rec=score>best;
-  if(rec){best=score;try{localStorage.setItem(bestKey(level),best)}catch(e){}showBest();}
+  if(rec){best=score;try{localStorage.setItem(BEST_KEY,best)}catch(e){}showBest();}
   $('overtitle').textContent=won?'Veld leeg!':'Geen cijfers meer';
   $('final').textContent=score;
-  $('overmsg').textContent=(score===1?'punt':'punten')+(won?' · '+left+' cijfers over':' · nog '+tileCount()+' tegels')+' · '+L.name+(rec&&score>0?' · nieuw record!':'');
+  $('overmsg').textContent=(score===1?'punt':'punten')+(won?' · '+left+' cijfers over':' · nog '+tileCount()+' tegels')+(rec&&score>0?' · nieuw record!':'');
   if(won)[523,659,784,1047,1319].forEach((f,k)=>setTimeout(()=>beep(f,0.14),k*110));
   else [392,330,262].forEach((f,k)=>setTimeout(()=>beep(f,0.14),k*130));
   setTimeout(()=>{$('over').hidden=false;$('again').focus();},900);
@@ -299,7 +286,7 @@ function mix(){
 function toggleBomb(){
   if(state!=='play'||!jk.bomb)return;
   aim=aim?'':'bomb';sel=-1;hints=[];
-  say(aim?'Tik een leeg vakje voor de bom, en nog eens om hem te laten ontploffen.':'Bom weggelegd.');
+  say(aim?'Tik een leeg vakje voor de bom en druk lang om hem te laten ontploffen. Tik op de bom om te annuleren.':'Bom weggelegd.');
   render();
 }
 function explode(i){
@@ -346,7 +333,7 @@ function mark(){
   if(state!=='play')return;
   if(sel>=0&&grid[sel]===null&&!aim){
     marks.has(sel)?marks.delete(sel):marks.add(sel);beep(700,0.04,'sine',0.05);
-    say(marks.has(sel)?'Gemarkeerd. Tik het later nog eens om het te leggen.':'Markering weg.');
+    say(marks.has(sel)?'Gemarkeerd. Kies het later opnieuw en druk lang om te leggen.':'Markering weg.');
     render();
   }else clearMarks();
 }
@@ -405,7 +392,8 @@ function render(gone=[],added=[]){
     }
   }
   lastVals={};grid.forEach((v,i)=>{if(v!==null)lastVals[i]=v;});
-  $('cur').textContent=cur;$('cur').style.background=COL[cur];$('cur').className=LIGHT[cur]?'light':'';
+  if(aim){$('cur').textContent='✸';$('cur').style.background='';$('cur').className='bomb';}
+  else{$('cur').textContent=cur;$('cur').style.background=COL[cur];$('cur').className=LIGHT[cur]?'light':'';}
   $('score').textContent=score;$('left').textContent=left;$('tiles').textContent=tileCount();
   for(const k of JOKERS)$(k).disabled=!jk[k]||state!=='play';
   if(!history.length)$('undo').disabled=true;
@@ -426,33 +414,39 @@ function drawFrame(){
 function say(html){$('msg').innerHTML=html;}
 function preview(i){
   const nb=tilesAround(i), sum=nb.reduce((s,j)=>s+grid[j],0), ok=sum%10===cur;
-  say(`<span class="${ok?'ok':'no'}">${nb.map(j=>grid[j]).join(' + ')} = ${sum}${ok?' ✓':' ✗'}</span> · tik nog eens om te leggen`);
+  say(`<span class="${ok?'ok':'no'}">${nb.map(j=>grid[j]).join(' + ')} = ${sum}${ok?' ✓':' ✗'}</span> · druk lang om te leggen`);
 }
 
-/* --- besturing: tik om te kijken, nog een keer om te leggen; met de muis kijk je al door erover te gaan --- */
+/* --- besturing: tik om te kijken, lang drukken om te leggen (of de bom te laten ontploffen) --- */
 function cellAt(e){const c=e.target.closest&&e.target.closest('.cell');return c?+c.dataset.i:-1;}
+const okCell=i=>aim?grid[i]===null:canPlace(i);
+function choose(i){
+  if(i===sel)return;
+  sel=i;render();
+  if(aim)say('Druk lang om de bom hier te laten ontploffen.');else{preview(i);beep(600,0.03,'sine',0.05);}
+}
+function confirmAt(i){
+  try{navigator.vibrate&&navigator.vibrate(20)}catch(e){}
+  aim?explode(i):place(i);
+}
+let press=null;
+function endPress(){if(press){clearTimeout(press.t);cells[press.i]&&cells[press.i].classList.remove('press');press=null;}}
 $('board').addEventListener('pointerdown',e=>{
   if(state!=='play')return;
-  const i=cellAt(e);if(i<0)return;
-  e.preventDefault();
-  if(aim){
-    if(grid[i]!==null)return;   // de bom gaat op een leeg vakje
-    if(sel===i||e.pointerType==='mouse')explode(i);
-    else{sel=i;render();say('Tik nog eens om de bom te laten ontploffen.');}
-    return;
-  }
-  if(!canPlace(i))return;
-  if(sel===i)return place(i);
-  sel=i;render();preview(i);beep(600,0.03,'sine',0.05);
+  const i=cellAt(e);if(i<0||!okCell(i))return;
+  e.preventDefault();endPress();
+  choose(i);
+  cells[i].classList.add('press');
+  press={i,x:e.clientX,y:e.clientY,t:setTimeout(()=>{const j=press.i;endPress();if(state==='play'&&okCell(j))confirmAt(j);},500)};
 });
 $('board').addEventListener('pointermove',e=>{
-  if(state!=='play'||e.pointerType!=='mouse')return;
+  if(press&&Math.hypot(e.clientX-press.x,e.clientY-press.y)>12)endPress();   // wie schuift, wil niet leggen
+  if(state!=='play'||e.pointerType!=='mouse'||press)return;
   const i=cellAt(e);
-  if(i<0||i===sel)return;
-  if(aim){if(grid[i]===null){sel=i;render();}return;}
-  if(!canPlace(i))return;
-  sel=i;render();preview(i);
+  if(i>=0&&okCell(i))choose(i);
 });
+['pointerup','pointercancel'].forEach(k=>addEventListener(k,endPress));
+$('cur').addEventListener('click',()=>{if(aim)toggleBomb();});
 addEventListener('keydown',e=>{
   if(state!=='play')return;
   if(e.code==='KeyZ'||e.code==='Backspace'){undo();e.preventDefault();}
@@ -461,6 +455,7 @@ addEventListener('keydown',e=>{
   if(e.code==='KeyX')weg();
   if(e.code==='KeyS')mix();
   if(e.code==='KeyM')mark();
+  if((e.code==='Enter'||e.code==='Space')&&sel>=0&&okCell(sel)){e.preventDefault();confirmAt(sel);}
 });
 
 function start(){
@@ -470,7 +465,7 @@ $('go').addEventListener('click',start);
 $('again').addEventListener('click',start);
 $('restart').addEventListener('click',()=>{state='start';sel=-1;aim='';render();$('start').hidden=false;$('go').focus();});
 
-setLevel(level);
+showBest();
 newGame();state='start';render();
 </script>
 
