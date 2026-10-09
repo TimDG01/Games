@@ -45,6 +45,11 @@ button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background
   padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
 button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
 button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+.levels{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.levels button{font-size:13px;padding:10px 2px;color:var(--fg);background:transparent;border:2px solid #2f3860;box-shadow:none}
+.levels button:active{transform:none;box-shadow:none}
+.levels button[aria-pressed="true"]{color:var(--bg-deep);background:var(--accent);border-color:var(--accent)}
+.levels button[data-level="hell"][aria-pressed="true"]{background:#ff7a7a;border-color:#ff7a7a}
 </style>
 </head><body>
 
@@ -65,6 +70,12 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
       <p>Raketten vallen op je steden. Tik waar je ze wilt opvangen: je eigen raket vliegt erheen en ontploft daar. Alles in de ontploffing is weg. Mik een beetje vóór de raket uit.</p>
       <p>Schiet de capsules aan een parachute kapot. De bonus komt onderaan te staan: tik erop om hem te gebruiken wanneer jij wilt. Op de computer: klikken, of pijltjes en spatie, en 1 tot 8 voor de bonussen. P pauzeert.</p>
       <div class="legend" id="legend"></div>
+      <div class="levels" role="group" aria-label="Moeilijkheid">
+        <button data-level="makkelijk">Gemakkelijk</button>
+        <button data-level="normaal">Normaal</button>
+        <button data-level="moeilijk">Moeilijk</button>
+        <button data-level="hell">Hell</button>
+      </div>
       <p id="bestline">Record 0</p>
       <button id="go">Start</button>
       <div class="ver">Versie <span id="ver"></span></div>
@@ -83,12 +94,18 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
       <h1 id="overtitle">De steden zijn gevallen</h1>
       <div class="big" id="final">0</div>
       <p id="overmsg">punten</p>
+      <div class="levels" role="group" aria-label="Moeilijkheid">
+        <button data-level="makkelijk">Gemakkelijk</button>
+        <button data-level="normaal">Normaal</button>
+        <button data-level="moeilijk">Moeilijk</button>
+        <button data-level="hell">Hell</button>
+      </div>
       <button id="again">Opnieuw</button>
     </div>
   </div>
 </div>
 
-<script src="../../version.js?v=5.9"></script>
+<script src="../../version.js?v=6.0"></script>
 <script>
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -137,10 +154,30 @@ const BONUS_KANS=[['schild',.16],['bom',.16],['mega',.14],['snel',.12],['ijs',.1
     const s=document.createElement('span'),i=document.createElement('i');i.style.background=col;i.textContent=ch;s.append(i,txt);el.append(s);}
 })();
 
-let best=0; try{best=+localStorage.getItem('raket-best')||0}catch(e){}
-$('bestline').textContent='Record '+best;
+/* moeilijkheid: 'moeilijk' is het spel zoals het altijd was
+   sp: snelheid van de raketten, n: aantal per golf, air: extra tegelijk in de lucht, gap: tijd tussen groepjes,
+   ammo: raketten per basis, caps: extra bonuscapsules per golf, split/plane/smart: vanaf welke golf die erbij komen */
+const LEVELS={
+  makkelijk:{name:'Gemakkelijk',sp:0.65,n:0.7,air:-1,gap:1.5,ammo:10,caps:1,split:5,plane:6,smart:10},
+  normaal:  {name:'Normaal',    sp:0.82,n:0.85,air:0,gap:1.2,ammo:10,caps:0,split:4,plane:5,smart:8},
+  moeilijk: {name:'Moeilijk',   sp:1,   n:1,   air:0,gap:1,  ammo:10,caps:0,split:3,plane:4,smart:7},
+  hell:     {name:'Hell',       sp:1.35,n:1.4, air:2,gap:0.7,ammo:8, caps:-1,split:1,plane:2,smart:3},
+};
+let level='normaal'; try{const l=localStorage.getItem('raket-level');if(LEVELS[l])level=l;}catch(e){}
+let L=LEVELS[level];
+// record per moeilijkheid; 'raket-best' is het oude record, dat hoort bij moeilijk
+const bestKey=l=>l==='moeilijk'?'raket-best':'raket-best-'+l;
+let best=0;
+function setLevel(l){
+  level=l;L=LEVELS[l];try{localStorage.setItem('raket-level',l)}catch(e){}
+  best=0;try{best=+localStorage.getItem(bestKey(l))||0}catch(e){}
+  $('bestline').textContent='Record '+best+' · '+L.name;
+  document.querySelectorAll('[data-level]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.level===l));
+}
+document.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',()=>setLevel(b.dataset.level)));
+setLevel(level);
 
-const BASE_X=[28,200,372], CITY_X=[76,116,156,244,284,324], AMMO=10;
+const BASE_X=[28,200,372], CITY_X=[76,116,156,244,284,324];
 let state='start',score,wave,cities,bases,enemies,planes,missiles,blasts,caps,parts,flash,banner,bannerText,bannerSub;
 let toSpawn,spawnT,planeT,capT,capLeft,tally,nextCity,pendingCity,bigBomb,megaT,fastT,freezeT,dome=0,domeHit=0;
 let inv={}, cross={x:FW/2,y:300,show:false}, keyX=0, keyY=0;
@@ -151,14 +188,14 @@ function reset(){
   $('score').textContent=0;newWave();
 }
 function newWave(){
-  bases=BASE_X.map(x=>({x,alive:true,ammo:AMMO}));
+  bases=BASE_X.map(x=>({x,alive:true,ammo:L.ammo}));
   // verdiende extra steden terugzetten
   while(pendingCity>0&&cities.some(c=>!c.alive)){cities.find(c=>!c.alive).alive=true;pendingCity--;}
   enemies=[];planes=[];missiles=[];blasts=[];caps=[];tally=0;
   bigBomb=false;megaT=0;fastT=0;freezeT=0;
-  toSpawn=10+Math.floor(wave*1.5);spawnT=1.8;planeT=6+rnd()*6;
-  capLeft=Math.min(2+Math.floor(wave/3),4);capT=4+rnd()*6;
-  banner=1.8;bannerText='Golf '+wave;bannerSub=wave===1?'Verdedig je steden!':'×'+mult()+' bonus';
+  toSpawn=Math.round((10+Math.floor(wave*1.5))*L.n);spawnT=1.8;planeT=6+rnd()*6;
+  capLeft=Math.max(1,Math.min(2+Math.floor(wave/3),4)+L.caps);capT=4+rnd()*6;
+  banner=1.8;bannerText='Golf '+wave;bannerSub=wave===1?L.name+' · Verdedig je steden!':'×'+mult()+' bonus';
   $('wave').textContent=wave;showCities();
 }
 const mult=()=>Math.min(1+Math.floor((wave-1)/2),6);
@@ -178,11 +215,11 @@ function targets(){
   return t;
 }
 // moeilijkheid loopt rustig op: snelheid, aantal en nieuwe soorten komen geleidelijk
-const speedE=()=>Math.min(28+wave*3.5,100);
+const speedE=()=>Math.min(28+wave*3.5,100)*L.sp;
 function launchEnemy(x,y,smart){
   const ts=targets(), t=ts[Math.floor(rnd()*ts.length)];
   const e={sx:x,sy:y,x,y,tx:t.x+(rnd()-0.5)*8,ty:t.y,sp:speedE()*(smart?0.8:1),smart:!!smart,split:false};
-  if(!smart&&wave>=3&&y<100&&rnd()<Math.min(0.05+wave*0.025,0.3)){e.split=true;e.splitY=140+rnd()*180;}
+  if(!smart&&wave>=L.split&&y<100&&rnd()<Math.min(0.05+wave*0.025,0.3)){e.split=true;e.splitY=140+rnd()*180;}
   aim(e);enemies.push(e);
 }
 function aim(e){const dx=e.tx-e.x,dy=e.ty-e.y,d=Math.hypot(dx,dy)||1;e.vx=dx/d*e.sp;e.vy=dy/d*e.sp;}
@@ -245,7 +282,7 @@ function useBonus(k){
   if(k==='mega')megaT=10;
   if(k==='snel')fastT=10;
   if(k==='ijs')freezeT=5;
-  if(k==='vul')for(const b of bases){b.alive=true;b.ammo=AMMO;}
+  if(k==='vul')for(const b of bases){b.alive=true;b.ammo=L.ammo;}
   if(k==='stad'){cities.find(s=>!s.alive).alive=true;showCities();}
   if(k==='flits'){
     for(const e of enemies)if(!e.dead)killEnemy(e,e.smart?125:25);
@@ -270,16 +307,16 @@ function update(dt){
   if(state==='play'&&toSpawn>0&&!frozen&&banner<=0.4){
     spawnT-=dt;
     const inAir=enemies.length;
-    if(spawnT<=0&&inAir<3+Math.ceil(wave/2)){
+    if(spawnT<=0&&inAir<Math.max(2,3+Math.ceil(wave/2)+L.air)){
       const n=Math.min(toSpawn,1+Math.floor(rnd()*Math.min(3,1+wave/4)));
       for(let i=0;i<n;i++){
-        const smart=wave>=7&&rnd()<Math.min(0.04+wave*0.015,0.25);
+        const smart=wave>=L.smart&&rnd()<Math.min(0.04+wave*0.015,0.25);
         launchEnemy(10+rnd()*(FW-20),0,smart);toSpawn--;
       }
-      spawnT=Math.max(0.8,2.6-wave*0.08)+rnd()*1.2;
+      spawnT=(Math.max(0.8,2.6-wave*0.08)+rnd()*1.2)*L.gap;
     }
-    // vliegtuigen vanaf golf 4: vliegen over en laten raketten vallen
-    if(wave>=4){planeT-=dt;if(planeT<=0){
+    // vliegtuigen (op moeilijk vanaf golf 4): vliegen over en laten raketten vallen
+    if(wave>=L.plane){planeT-=dt;if(planeT<=0){
       const left=rnd()<0.5;planes.push({x:left?-20:FW+20,y:110+rnd()*90,v:(left?1:-1)*(45+wave*2),dropT:1+rnd()*2,drops:2});
       planeT=10+rnd()*8;
     }}
@@ -357,10 +394,10 @@ function end(){
   if(state!=='play')return;
   state='over';
   const rec=score>best;
-  if(rec){best=score;try{localStorage.setItem('raket-best',best)}catch(e){}}
-  $('bestline').textContent='Record '+best;
+  if(rec){best=score;try{localStorage.setItem(bestKey(level),best)}catch(e){}}
+  $('bestline').textContent='Record '+best+' · '+L.name;
   $('final').textContent=score;
-  $('overmsg').textContent=(score===1?'punt':'punten')+' · golf '+wave+(rec&&score>0?' · nieuw record!':'');
+  $('overmsg').textContent=(score===1?'punt':'punten')+' · golf '+wave+' · '+L.name+(rec&&score>0?' · nieuw record!':'');
   setTimeout(()=>{$('over').hidden=false;$('again').focus();},1400);
 }
 
