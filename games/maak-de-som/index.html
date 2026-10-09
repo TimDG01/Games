@@ -41,6 +41,9 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 .cell.ghost{color:rgba(244,240,230,.55);background:#2f3860}
 .cell.hint{animation:hint 1s ease-in-out infinite}
 @keyframes hint{50%{background:#4a5590}}
+/* gemarkeerde vakjes: een oranje stip */
+.cell.mark::after{content:'';position:absolute;width:28%;height:28%;border-radius:50%;background:var(--accent);top:12%;right:12%}
+.cell.ghost.mark::after{width:22%;height:22%;top:8%;right:8%}
 .cell.out{animation:out .28s ease-in forwards}
 @keyframes out{to{transform:scale(.2);opacity:0}}
 .cell.in{animation:in .18s ease-out}
@@ -59,8 +62,8 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 #msg{flex:1;max-width:300px;font-size:16px;line-height:1.35;color:var(--muted);min-height:44px;display:flex;align-items:center}
 #msg b{color:var(--fg);font-weight:600}
 #msg .ok{color:#7bd88f} #msg .no{color:#ff7a7a}
-.tools{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;width:100%;max-width:400px}
-.tools button{position:relative;font-family:var(--body);font-weight:600;font-size:13px;color:var(--fg);background:#2a3358;border:0;border-radius:6px;
+.tools{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;width:100%;max-width:420px}
+.tools button{position:relative;font-family:var(--body);font-weight:600;font-size:12px;color:var(--fg);background:#2a3358;border:0;border-radius:6px;
   padding:8px 4px 7px;cursor:pointer;box-shadow:0 4px 0 #1a2140;display:flex;flex-direction:column;align-items:center;gap:2px}
 .tools button i{font-style:normal;font-size:20px;line-height:1.1}
 .tools button:active{transform:translateY(3px);box-shadow:0 1px 0 #1a2140}
@@ -70,6 +73,7 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 .tools sup{position:absolute;top:-6px;right:-4px;min-width:20px;height:20px;border-radius:10px;background:var(--accent);color:var(--bg-deep);
   font-size:12px;line-height:20px;padding:0 5px}
 .tools button[aria-pressed="true"] sup{background:var(--bg-deep);color:var(--accent)}
+.tools .marker{background:#3a2f1a;color:var(--accent)}
 
 .overlay{position:fixed;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62);overflow-y:auto}
 .overlay[hidden]{display:none}
@@ -96,7 +100,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   <div class="top">
     <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
     <div class="stat"><b id="score">0</b><span>Score</span></div>
-    <div class="stat"><b id="left">35</b><span>Cijfers</span></div>
+    <div class="stat"><b id="left">50</b><span>Cijfers</span></div>
     <div class="stat"><b id="tiles">49</b><span>Tegels</span></div>
     <button class="sndbtn" aria-label="Geluid aan of uit"></button>
     <button class="restart" id="restart" aria-label="Opnieuw beginnen of moeilijkheid kiezen">&#8635;</button>
@@ -110,11 +114,12 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
         <div id="msg" aria-live="polite"></div>
       </div>
       <div class="tools">
-        <button id="mix" aria-label="Husselen: alle tegels door elkaar"><i>&#10227;</i>Hussel<sup id="n-mix">2</sup></button>
-        <button id="bomb" aria-pressed="false" aria-label="Bom"><i>&#10040;</i>Bom<sup id="n-bomb">1</sup></button>
-        <button id="weg" aria-pressed="false" aria-label="Eén tegel weghalen"><i>&#10005;</i>Weg<sup id="n-weg">2</sup></button>
+        <button id="mix" aria-label="Husselen: alle tegels door elkaar"><i>&#10227;</i>Hussel</button>
+        <button id="bomb" aria-pressed="false" aria-label="Bom"><i>&#10040;</i>Bom</button>
+        <button id="weg" aria-label="Jouw cijfer en alle tegels met hetzelfde cijfer weg"><i>&#10005;</i>Weg</button>
         <button id="undo" aria-label="Zet terugnemen"><i>&#8630;</i>Terug</button>
-        <button id="hint" aria-label="Hint"><i>?</i>Hint<sup id="n-hint">3</sup></button>
+        <button id="hint" aria-label="Hint: alle goede vakjes"><i>?</i>Hint</button>
+        <button id="mark" class="marker" aria-label="Vakje markeren; lang drukken wist alle markeringen"><i>&#9679;</i>Markeer</button>
       </div>
     </div>
   </div>
@@ -126,9 +131,10 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
       <div class="example" aria-hidden="true">
         <span style="background:#ff9a52">3</span><span style="background:#5fae4a;color:#f4f0e6">7</span><span style="background:#ff9a52">3</span>
       </div>
-      <p>3 + 7 + 3 = 1<b>3</b>, dus een <b>3</b> eronder ruimt ze op. Klopt het niet, dan blijft je cijfer liggen als nieuwe tegel. Maak het veld leeg voor je cijfers op zijn.</p>
-      <p>Tik één keer om te kijken, nog een keer om te leggen.</p>
-      <p>Jokers onderaan: <b>hussel</b> alle tegels, een <b>bom</b> op een vakje en alles eromheen, één tegel <b>weg</b>, een zet <b>terug</b> en een <b>hint</b>.</p>
+      <p>3 + 7 + 3 = 1<b>3</b>, dus een <b>3</b> eronder ruimt ze op. Klopt het niet, dan blijft je cijfer liggen als nieuwe tegel. Maak het veld leeg: je hebt maar <b>50 cijfers</b>.</p>
+      <p>Tik één keer op een leeg vakje om te kijken, nog een keer om te leggen.</p>
+      <p>Elke joker mag <b>één keer</b> per spel: <b>hussel</b> alle tegels, een <b>bom</b> op een leeg vakje laat alles eromheen ontploffen, <b>weg</b> haalt je cijfer en alle tegels met hetzelfde cijfer weg, <b>terug</b> neemt een zet terug, en de <b>hint</b> toont alle goede vakjes.</p>
+      <p>Met <b>markeer</b> zet je een stip op het vakje dat je bekijkt, om het te onthouden. Lang drukken op markeer wist alle stippen.</p>
       <div class="levels" role="group" aria-label="Moeilijkheid">
         <button data-level="makkelijk">Makkelijk</button>
         <button data-level="normaal">Normaal</button>
@@ -154,7 +160,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=6.4"></script>
+<script src="../../version.js?v=6.5"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -162,11 +168,12 @@ try{$('ver').textContent=SITE_VERSION}catch(e){}
 /* moeilijkheid
    core: zoveel × zoveel tegels in het midden, met een lege rand eromheen
    digits: cijfers die je krijgt, help: kans dat je volgende cijfer ergens past
-   jk: jokers per spel: husselen, bom, één tegel weg, hint (terugnemen kan altijd) */
+   zoals in het origineel: 50 cijfers en elke joker één keer per spel */
+const JOKERS=['mix','bomb','weg','undo','hint'];
 const LEVELS={
-  makkelijk:{name:'Makkelijk',core:5,digits:25,help:0.8, jk:{mix:3,bomb:2,weg:3,hint:5}},
-  normaal:  {name:'Normaal',  core:7,digits:35,help:0.6, jk:{mix:2,bomb:1,weg:2,hint:3}},
-  moeilijk: {name:'Moeilijk', core:7,digits:28,help:0.35,jk:{mix:1,bomb:1,weg:1,hint:1}},
+  makkelijk:{name:'Makkelijk',core:5,digits:50,help:0.8},
+  normaal:  {name:'Normaal',  core:7,digits:50,help:0.6},
+  moeilijk: {name:'Moeilijk', core:7,digits:50,help:0.35},
 };
 // elk cijfer zijn eigen kleur; 'light' krijgt witte letters
 const COL=['#9097b5','#8e5bd6','#a6d8b0','#ff9a52','#4f7cff','#ffe066','#4fd1c5','#5fae4a','#4a5280','#e58fd0'];
@@ -175,8 +182,8 @@ const bestKey=l=>'somveld-best-'+l;
 
 let level='normaal'; try{const l=localStorage.getItem('somveld-level');if(LEVELS[l])level=l;}catch(e){}
 let L=LEVELS[level], best=0;
-// aim: '' gewoon leggen, 'bomb' of 'weg' als je een joker gaat gebruiken
-let N, grid, cur, left, score, jk, history, sel=-1, hintAt=-1, aim='', state='start', cells=[];
+// aim: '' gewoon leggen, 'bomb' als je de bom gaat leggen; hints: vakjes die knipperen; marks: gemarkeerde vakjes
+let N, grid, cur, left, score, jk, history, sel=-1, hints=[], marks=new Set(), aim='', state='start', cells=[];
 
 function setLevel(l){
   level=l;L=LEVELS[l];try{localStorage.setItem('somveld-level',l)}catch(e){}
@@ -224,13 +231,13 @@ function nextDigit(){
 function newGame(){
   N=L.core+2;grid=Array(N*N).fill(null);
   for(let r=1;r<=L.core;r++)for(let c=1;c<=L.core;c++)grid[r*N+c]=rnd(10);
-  fade={};left=L.digits;score=0;jk={...L.jk};history=[];sel=-1;hintAt=-1;aim='';
+  fade={};left=L.digits;score=0;jk={};JOKERS.forEach(k=>jk[k]=1);history=[];sel=-1;hints=[];marks=new Set();aim='';
   cur=nextDigit();
   buildBoard();render();
   say('Tik een leeg vakje naast de tegels.');
 }
 
-// een hint die je gebruikt hebt krijg je niet terug, de andere jokers wel
+// terugnemen geeft een joker die je in die zet gebruikte terug, behalve de hint
 function snapshot(){history.push({grid:grid.slice(),cur,left,score,jk:{...jk}});if(history.length>200)history.shift();}
 
 function place(i){
@@ -256,7 +263,7 @@ function place(i){
 let lastVals={}, fade={}, fadeTimer=null;
 
 function afterMove(){
-  sel=-1;hintAt=-1;
+  sel=-1;hints=[];
   if(!tileCount())return finish(true);
   if(left<=0||!spots().length)return finish(false);
   cur=nextDigit();
@@ -277,7 +284,7 @@ function finish(won){
   setTimeout(()=>{$('over').hidden=false;$('again').focus();},900);
 }
 
-/* --- jokers --- */
+/* --- jokers: elk één keer per spel --- */
 // husselen: dezelfde tegels, maar de cijfers door elkaar
 function mix(){
   if(state!=='play'||!jk.mix)return;
@@ -285,52 +292,79 @@ function mix(){
   snapshot();jk.mix--;
   for(let k=vals.length-1;k>0;k--){const j=rnd(k+1);[vals[k],vals[j]]=[vals[j],vals[k]];}
   at.forEach((i,k)=>grid[i]=vals[k]);
-  sel=-1;hintAt=-1;aim='';beep(440,0.08);setTimeout(()=>beep(660,0.08),70);
+  sel=-1;hints=[];aim='';beep(440,0.08);setTimeout(()=>beep(660,0.08),70);
   render([],at);say('Alles door elkaar gehusseld.');
 }
-// bom of weg: eerst de joker kiezen, dan het vakje
-function toggleAim(k){
-  if(state!=='play'||!jk[k])return;
-  aim=aim===k?'':k;sel=-1;hintAt=-1;
-  say(aim==='bomb'?'Tik waar de bom moet vallen: het vakje en alles eromheen is weg.':
-      aim==='weg'?'Tik de tegel die weg moet.':'Joker weggelegd.');
+// bom: eerst de joker kiezen, dan een leeg vakje; alles eromheen ontploft
+function toggleBomb(){
+  if(state!=='play'||!jk.bomb)return;
+  aim=aim?'':'bomb';sel=-1;hints=[];
+  say(aim?'Tik een leeg vakje voor de bom, en nog eens om hem te laten ontploffen.':'Bom weggelegd.');
   render();
 }
-function strike(i){
-  const hit=(aim==='bomb'?[i,...around(i)]:[i]).filter(j=>grid[j]!==null);
-  if(!hit.length){say(aim==='weg'?'Tik een tegel, geen leeg vakje.':'Daar ligt niets.');return;}
-  snapshot();jk[aim]--;
+function explode(i){
+  const hit=around(i).filter(j=>grid[j]!==null);
+  if(!hit.length){say('Daar ligt niets omheen.');return;}
+  snapshot();jk.bomb--;
   for(const j of hit)grid[j]=null;
-  if(aim==='bomb'){beep(70,0.5,'sawtooth',0.1);say('Boem! '+hit.length+(hit.length===1?' tegel':' tegels')+' weg.');}
-  else{beep(300,0.12,'square',0.05);say('Tegel weg.');}
-  aim='';sel=-1;hintAt=-1;
+  beep(70,0.5,'sawtooth',0.1);say('Boem! '+hit.length+(hit.length===1?' tegel':' tegels')+' weg.');
+  aim='';sel=-1;hints=[];
   render(hit,[]);
   if(!tileCount())return finish(true);
   if(!spots().length)return finish(false);
 }
+// weg: je cijfer en alle tegels met hetzelfde cijfer verdwijnen
+function weg(){
+  if(state!=='play'||!jk.weg)return;
+  const hit=[],d=cur;grid.forEach((v,i)=>{if(v===d)hit.push(i);});
+  snapshot();jk.weg--;left--;
+  for(const j of hit)grid[j]=null;
+  beep(300,0.12,'square',0.05);
+  aim='';
+  render(hit,[]);
+  afterMove();
+  if(state==='play')say('Je '+d+' en '+(hit.length===1?'1 tegel':hit.length+' tegels')+' met een '+d+' weg.');
+}
+// hint: alle vakjes waar je cijfer goed ligt knipperen
 function hint(){
   if(state!=='play'||!jk.hint)return;
   const good=spots().filter(i=>sumAt(i)%10===cur);
-  aim='';
-  if(!good.length){say('Je '+cur+' past nergens. Hussel, of leg hem ergens neer.');render();return;}
-  jk.hint--;
-  // het vakje dat de meeste tegels opruimt
-  good.sort((a,b)=>tilesAround(b).length-tilesAround(a).length);
-  hintAt=good[0];sel=-1;beep(880,0.1,'sine');
-  say('Probeer het knipperende vakje.');render();
+  aim='';jk.hint--;sel=-1;hints=good;
+  if(!good.length){say('Je '+cur+' past nergens. Hussel, of leg hem ergens neer.');beep(200,0.12,'square',0.05);render();return;}
+  beep(880,0.1,'sine');
+  say(good.length===1?'Eén vakje is goed: het knippert.':good.length+' vakjes zijn goed: ze knipperen.');render();
 }
 function undo(){
-  if(state!=='play'||!history.length)return;
+  if(state!=='play'||!jk.undo||!history.length)return;
   const h=history.pop(), hint=jk.hint;
-  grid=h.grid;cur=h.cur;left=h.left;score=h.score;jk={...h.jk,hint};
-  sel=-1;hintAt=-1;aim='';beep(330,0.06);
+  grid=h.grid;cur=h.cur;left=h.left;score=h.score;jk={...h.jk,hint,undo:0};
+  sel=-1;hints=[];aim='';beep(330,0.06);
   say('Zet teruggenomen.');render();
 }
+// markeer: een stip op het vakje dat je bekijkt; zonder gekozen vakje of met lang drukken: alle stippen weg
+function mark(){
+  if(state!=='play')return;
+  if(sel>=0&&grid[sel]===null&&!aim){
+    marks.has(sel)?marks.delete(sel):marks.add(sel);beep(700,0.04,'sine',0.05);
+    say(marks.has(sel)?'Gemarkeerd. Tik het later nog eens om het te leggen.':'Markering weg.');
+    render();
+  }else clearMarks();
+}
+function clearMarks(){
+  if(!marks.size){say('Tik eerst een leeg vakje, dan markeer.');return;}
+  marks.clear();beep(400,0.06,'sine',0.05);say('Alle markeringen gewist.');render();
+}
 $('mix').addEventListener('click',mix);
-$('bomb').addEventListener('click',()=>toggleAim('bomb'));
-$('weg').addEventListener('click',()=>toggleAim('weg'));
+$('bomb').addEventListener('click',toggleBomb);
+$('weg').addEventListener('click',weg);
 $('hint').addEventListener('click',hint);
 $('undo').addEventListener('click',undo);
+// lang drukken op markeer wist alle stippen; een gewone tik markeert
+let markTimer=null, markLong=false;
+$('mark').addEventListener('pointerdown',()=>{markLong=false;markTimer=setTimeout(()=>{markLong=true;clearMarks();},550);});
+['pointerup','pointerleave','pointercancel'].forEach(t=>$('mark').addEventListener(t,()=>clearTimeout(markTimer)));
+$('mark').addEventListener('click',()=>{if(markLong){markLong=false;return;}mark();});
+$('mark').addEventListener('contextmenu',e=>e.preventDefault());
 
 /* --- tekenen --- */
 function fit(){
@@ -364,25 +398,26 @@ function render(gone=[],added=[]){
     if(v===null){
       const open=state==='play'&&!aim&&canPlace(i);
       c.style.background='';c.textContent=i===sel&&state==='play'?cur:'';
-      c.className='cell '+(i===sel&&state==='play'?'ghost':open?'open':'empty')+(i===hintAt?' hint':'')+(aim==='bomb'?' boomable':'');
+      c.className='cell '+(i===sel&&state==='play'?'ghost':open?'open':'empty')+(hints.includes(i)?' hint':'')+(marks.has(i)?' mark':'')+(aim?' boomable':'');
     }else{
-      c.className='cell tile'+(LIGHT[v]?' light':'')+(added.includes(i)?' in':'')+(aim?' boomable':'');
+      c.className='cell tile'+(LIGHT[v]?' light':'')+(added.includes(i)?' in':'');
       c.style.background=COL[v];c.textContent=v;
     }
   }
   lastVals={};grid.forEach((v,i)=>{if(v!==null)lastVals[i]=v;});
   $('cur').textContent=cur;$('cur').style.background=COL[cur];$('cur').className=LIGHT[cur]?'light':'';
   $('score').textContent=score;$('left').textContent=left;$('tiles').textContent=tileCount();
-  for(const k of ['mix','bomb','weg','hint']){$('n-'+k).textContent=jk[k];$(k).disabled=!jk[k]||state!=='play';}
-  $('undo').disabled=!history.length||state!=='play';
-  $('bomb').setAttribute('aria-pressed',aim==='bomb');$('weg').setAttribute('aria-pressed',aim==='weg');
+  for(const k of JOKERS)$(k).disabled=!jk[k]||state!=='play';
+  if(!history.length)$('undo').disabled=true;
+  $('mark').disabled=state!=='play';
+  $('bomb').setAttribute('aria-pressed',aim==='bomb');
   drawFrame();
 }
 // het kader rond het gekozen vakje en zijn buren: altijd 3×3, ook aan de rand; groen als het klopt
 function drawFrame(){
   const f=$('frame');
   if(state!=='play'||sel<0){f.style.display='none';return;}
-  const c=cells[sel], step=c.offsetWidth+(cells[1].offsetLeft-cells[0].offsetLeft-c.offsetWidth), w=aim==='weg'?0:1, p=3;
+  const c=cells[sel], step=c.offsetWidth+(cells[1].offsetLeft-cells[0].offsetLeft-c.offsetWidth), w=1, p=3;
   f.style.display='block';
   f.style.left=(c.offsetLeft-w*step-p)+'px';f.style.top=(c.offsetTop-w*step-p)+'px';
   f.style.width=(c.offsetWidth+2*w*step+2*p)+'px';f.style.height=(c.offsetHeight+2*w*step+2*p)+'px';
@@ -401,9 +436,9 @@ $('board').addEventListener('pointerdown',e=>{
   const i=cellAt(e);if(i<0)return;
   e.preventDefault();
   if(aim){
-    if(aim==='weg'&&grid[i]===null)return;
-    if(sel===i||e.pointerType==='mouse')strike(i);
-    else{sel=i;render();say(aim==='bomb'?'Tik nog eens om de bom hier te laten vallen.':'Tik nog eens om deze tegel weg te halen.');}
+    if(grid[i]!==null)return;   // de bom gaat op een leeg vakje
+    if(sel===i||e.pointerType==='mouse')explode(i);
+    else{sel=i;render();say('Tik nog eens om de bom te laten ontploffen.');}
     return;
   }
   if(!canPlace(i))return;
@@ -414,18 +449,18 @@ $('board').addEventListener('pointermove',e=>{
   if(state!=='play'||e.pointerType!=='mouse')return;
   const i=cellAt(e);
   if(i<0||i===sel)return;
-  if(aim){if(aim==='bomb'||grid[i]!==null){sel=i;render();}return;}
+  if(aim){if(grid[i]===null){sel=i;render();}return;}
   if(!canPlace(i))return;
   sel=i;render();preview(i);
 });
-$('board').addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&state==='play'&&sel>=0){sel=-1;render();}});
 addEventListener('keydown',e=>{
   if(state!=='play')return;
   if(e.code==='KeyZ'||e.code==='Backspace'){undo();e.preventDefault();}
   if(e.code==='KeyH')hint();
-  if(e.code==='KeyB')toggleAim('bomb');
-  if(e.code==='KeyX')toggleAim('weg');
+  if(e.code==='KeyB')toggleBomb();
+  if(e.code==='KeyX')weg();
   if(e.code==='KeyS')mix();
+  if(e.code==='KeyM')mark();
 });
 
 function start(){
