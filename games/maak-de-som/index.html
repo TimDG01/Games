@@ -149,7 +149,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=7.0"></script>
+<script src="../../version.js?v=7.1"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -359,8 +359,8 @@ function fit(){
   const top=document.querySelector('.top').offsetHeight+$('best').offsetHeight;
   const W=Math.min(innerWidth-16,560), availH=innerHeight-top-document.querySelector('.dock').offsetHeight-90;
   const gap=N>7?3:5, st=document.documentElement.style;
-  // naast het veld blijft net genoeg ruimte (samen met de schermrand) voor het 3×3-kader rond een vakje aan de rand
-  const cell=Math.floor(Math.min((W+10-gap*(N+1))/(N+2),(availH-gap*(N-1))/N,68));
+  // het veld gebruikt de hele breedte; het 3×3-kader rond een vakje aan de rand valt dan deels buiten het scherm
+  const cell=Math.floor(Math.min((W-gap*(N-1))/N,(availH-gap*(N-1))/N,68));
   st.setProperty('--n',N);st.setProperty('--gap',gap+'px');st.setProperty('--cell',Math.max(26,cell)+'px');
   drawFrame();
 }
@@ -411,7 +411,7 @@ function drawFrame(){
   f.style.width=(c.offsetWidth+2*w*step+2*p)+'px';f.style.height=(c.offsetHeight+2*w*step+2*p)+'px';
   f.className=aim?aim:grid[sel]===null&&sumAt(sel)%10===cur?'ok':'';
 }
-function say(html){$('msg').innerHTML=html;}
+function say(html){$('msg').innerHTML='<span>'+html+'</span>';}   // één blok, zodat de regel netjes doorloopt
 function preview(i){
   const nb=tilesAround(i), sum=nb.reduce((s,j)=>s+grid[j],0), ok=sum%10===cur;
   say(`<span class="${ok?'ok':'no'}">${nb.map(j=>grid[j]).join(' + ')} = ${sum}${ok?' ✓':' ✗'}</span> · druk lang om te leggen`);
