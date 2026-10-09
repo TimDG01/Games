@@ -53,6 +53,7 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 /* kader rond het vakje en zijn buren */
 #frame{position:absolute;border:3px solid #ff7a7a;border-radius:8px;pointer-events:none;display:none}
 #frame.ok{border-color:#7bd88f}
+#frame.plain{border-color:#f4f0e6}
 #frame.bomb,#frame.weg{border-color:#ffb347;border-style:dashed}
 
 .dock{width:100%;max-width:520px;display:flex;flex-direction:column;gap:16px;align-items:center;padding:0 4px}
@@ -92,6 +93,11 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
   padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
 .panel > button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
 button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+.levels{display:flex;gap:6px}
+.levels button{flex:1;font-family:var(--display);font-size:14px;padding:9px 2px 7px;color:var(--fg);background:transparent;border:2px solid #2f3860;border-radius:4px;cursor:pointer;line-height:1.2}
+.levels button small{display:block;font-family:var(--body);font-size:12px;font-weight:600;color:var(--muted)}
+.levels button[aria-pressed="true"]{color:var(--bg-deep);background:var(--accent);border-color:var(--accent)}
+.levels button[aria-pressed="true"] small{color:var(--bg-deep)}
 .example{display:flex;justify-content:center;gap:4px}
 .example span{width:30px;height:30px;border-radius:5px;display:grid;place-items:center;font-family:var(--display);font-size:17px;color:#0b0f1d}
 </style>
@@ -134,6 +140,10 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
       </div>
       <p>3 + 7 + 3 = 1<b>3</b>: een <b>3</b> eronder ruimt ze op. Anders blijft je cijfer liggen. Je hebt <b>50 cijfers</b>.</p>
       <p><b>Tik</b> om te kijken, <b>druk lang</b> om te leggen. Elke joker mag één keer. Lang drukken op <b>markeer</b> of op het <b>record</b> wist het.</p>
+      <div class="levels" role="group" aria-label="Modus">
+        <button data-mode="easy">Easy<small>met de som</small></button>
+        <button data-mode="normaal">Normaal<small>zelf rekenen</small></button>
+      </div>
       <button id="go">Start</button>
       <div class="ver">Versie <span id="ver"></span></div>
     </div>
@@ -144,12 +154,16 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
       <h1 id="overtitle">Veld leeg!</h1>
       <div class="big" id="final">0</div>
       <p id="overmsg">punten</p>
+      <div class="levels" role="group" aria-label="Modus">
+        <button data-mode="easy">Easy<small>met de som</small></button>
+        <button data-mode="normaal">Normaal<small>zelf rekenen</small></button>
+      </div>
       <button id="again">Opnieuw</button>
     </div>
   </div>
 </div>
 
-<script src="../../version.js?v=7.1"></script>
+<script src="../../version.js?v=7.2"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -161,17 +175,25 @@ const L={core:7,digits:50,help:0.6};
 // elk cijfer zijn eigen kleur; 'light' krijgt witte letters
 const COL=['#9097b5','#8e5bd6','#a6d8b0','#ff9a52','#4f7cff','#ffe066','#4fd1c5','#5fae4a','#4a5280','#e58fd0'];
 const LIGHT=[false,true,false,false,true,false,false,true,true,false];
-const BEST_KEY='somveld-best-normaal';
+// easy: je ziet de som en een groen of rood kader; normaal: zelf rekenen. Elke modus zijn eigen record.
+const MODES={easy:'Easy',normaal:'Normaal'}, bestKey=m=>'somveld-best-'+m;
 
-let best=0; try{best=+localStorage.getItem(BEST_KEY)||0}catch(e){}
+let mode='normaal', best=0; try{const m=localStorage.getItem('somveld-mode');if(MODES[m])mode=m;}catch(e){}
+function setMode(m){
+  mode=m;try{localStorage.setItem('somveld-mode',m)}catch(e){}
+  best=0;try{best=+localStorage.getItem(bestKey(m))||0}catch(e){}
+  showBest();
+  document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===m));
+}
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
 // aim: '' gewoon leggen, 'bomb' als je de bom gaat leggen; hints: vakjes die knipperen; marks: gemarkeerde vakjes
 let N, grid, cur, left, score, jk, history, sel=-1, hints=[], marks=new Set(), aim='', state='start', cells=[];
 
-function showBest(){$('best').textContent='Record '+(best||'–');}
+function showBest(){$('best').textContent='Record '+(best||'–')+' · '+MODES[mode];}
 // lang drukken op het record wist het
 onLongPress($('best'),()=>{
   if(!best)return;
-  best=0;try{localStorage.removeItem(BEST_KEY)}catch(e){}
+  best=0;try{localStorage.removeItem(bestKey(mode))}catch(e){}
   showBest();beep(300,0.15);if(state==='play')say('Record gewist.');
 });
 function onLongPress(el,fn){
@@ -235,12 +257,12 @@ function place(i){
     for(const j of nb)grid[j]=null;
     const pts=nb.length*nb.length*10;score+=pts;
     render(nb.concat([i]),[]);
-    say(`<span class="ok">${txt}</span> · <b>+${pts}</b>`);
+    say(mode==='easy'?`<span class="ok">${txt}</span> · <b>+${pts}</b>`:`<span class="ok">Raak! ${nb.length===1?'1 tegel':nb.length+' tegels'} weg</span> · <b>+${pts}</b>`);
     [523,659,784,1047].slice(0,Math.min(4,1+Math.floor(nb.length/2))).forEach((f,k)=>setTimeout(()=>beep(f,0.1),k*80));
   }else{
     grid[i]=d;
     render([],[i]);
-    say(`<span class="no">${txt}</span> · je ${d} blijft liggen`);
+    say(mode==='easy'?`<span class="no">${txt}</span> · je ${d} blijft liggen`:`<span class="no">Mis</span> · je ${d} blijft liggen`);
     beep(200,0.12,'square',0.05);
   }
   afterMove();
@@ -262,10 +284,10 @@ function finish(won){
   if(won){score+=500+left*100;}
   $('score').textContent=score;
   const rec=score>best;
-  if(rec){best=score;try{localStorage.setItem(BEST_KEY,best)}catch(e){}showBest();}
+  if(rec){best=score;try{localStorage.setItem(bestKey(mode),best)}catch(e){}showBest();}
   $('overtitle').textContent=won?'Veld leeg!':'Geen cijfers meer';
   $('final').textContent=score;
-  $('overmsg').textContent=(score===1?'punt':'punten')+(won?' · '+left+' cijfers over':' · nog '+tileCount()+' tegels')+(rec&&score>0?' · nieuw record!':'');
+  $('overmsg').textContent=(score===1?'punt':'punten')+(won?' · '+left+' cijfers over':' · nog '+tileCount()+' tegels')+' · '+MODES[mode]+(rec&&score>0?' · nieuw record!':'');
   if(won)[523,659,784,1047,1319].forEach((f,k)=>setTimeout(()=>beep(f,0.14),k*110));
   else [392,330,262].forEach((f,k)=>setTimeout(()=>beep(f,0.14),k*130));
   setTimeout(()=>{$('over').hidden=false;$('again').focus();},900);
@@ -409,10 +431,11 @@ function drawFrame(){
   f.style.display='block';
   f.style.left=(c.offsetLeft-w*step-p)+'px';f.style.top=(c.offsetTop-w*step-p)+'px';
   f.style.width=(c.offsetWidth+2*w*step+2*p)+'px';f.style.height=(c.offsetHeight+2*w*step+2*p)+'px';
-  f.className=aim?aim:grid[sel]===null&&sumAt(sel)%10===cur?'ok':'';
+  f.className=aim?aim:mode!=='easy'?'plain':grid[sel]===null&&sumAt(sel)%10===cur?'ok':'';
 }
 function say(html){$('msg').innerHTML='<span>'+html+'</span>';}   // één blok, zodat de regel netjes doorloopt
 function preview(i){
+  if(mode!=='easy'){say('Reken zelf: eindigt de som op '+cur+'? Druk lang om te leggen.');return;}
   const nb=tilesAround(i), sum=nb.reduce((s,j)=>s+grid[j],0), ok=sum%10===cur;
   say(`<span class="${ok?'ok':'no'}">${nb.map(j=>grid[j]).join(' + ')} = ${sum}${ok?' ✓':' ✗'}</span> · druk lang om te leggen`);
 }
@@ -465,7 +488,7 @@ $('go').addEventListener('click',start);
 $('again').addEventListener('click',start);
 $('restart').addEventListener('click',()=>{state='start';sel=-1;aim='';render();$('start').hidden=false;$('go').focus();});
 
-showBest();
+setMode(mode);
 newGame();state='start';render();
 </script>
 
