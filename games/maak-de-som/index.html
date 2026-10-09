@@ -39,6 +39,7 @@ html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-fam
 .cell.tile{box-shadow:inset 0 -3px 0 rgba(11,15,29,.3), inset 0 2px 0 rgba(255,255,255,.18)}
 .cell.light{color:#f4f0e6}
 .cell.ghost{color:rgba(244,240,230,.55);background:#2f3860}
+.cell.bombghost{color:var(--accent);font-family:var(--body);font-size:calc(var(--cell) * .8)}
 .cell.hint{animation:hint 1s ease-in-out infinite}
 @keyframes hint{50%{background:#4a5590}}
 /* gemarkeerde vakjes: een oranje stip */
@@ -148,7 +149,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=6.8"></script>
+<script src="../../version.js?v=6.9"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -383,8 +384,8 @@ function render(gone=[],added=[]){
     }
     if(v===null){
       const open=state==='play'&&!aim&&canPlace(i);
-      c.style.background='';c.textContent=i===sel&&state==='play'?cur:'';
-      c.className='cell '+(i===sel&&state==='play'?'ghost':open?'open':'empty')+(hints.includes(i)?' hint':'')+(marks.has(i)?' mark':'')+(aim?' boomable':'');
+      c.style.background='';c.textContent=i===sel&&state==='play'?(aim?'✸':cur):'';
+      c.className='cell '+(i===sel&&state==='play'?(aim?'ghost bombghost':'ghost'):open?'open':'empty')+(hints.includes(i)?' hint':'')+(marks.has(i)?' mark':'')+(aim?' boomable':'');
     }else{
       c.className='cell tile'+(LIGHT[v]?' light':'')+(added.includes(i)?' in':'');
       c.style.background=COL[v];c.textContent=v;
