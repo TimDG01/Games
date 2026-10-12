@@ -121,34 +121,31 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
 .stats .new{border-color:var(--accent)}
 .stats .new span{color:var(--accent);font-weight:600}
 
-/* lage schermen (kleine telefoons, liggend): de games blokkeren scrollen, dus alles moet passen */
-@media (max-height:760px){
-  .panel{gap:10px;padding:18px 16px 16px}
-  .logo{width:64px;height:64px}
-  .panel h1{font-size:30px}
-  .panel h2{font-size:24px}
-  .panel p{font-size:14px;line-height:1.35}
-  .levels{gap:6px}
-  .levels button{min-height:46px;padding:5px 12px}
-  .levels .nm b{font-size:15px}
-  .go{height:50px;font-size:18px}
-  .check{width:48px;height:48px;border-radius:16px}
-  .stats div{padding:8px 4px}
-}
-@media (max-height:620px){
-  .logo,.check{display:none}
-  .panel > button.link{padding:6px}
-}
+/* past een paneel niet op het scherm, dan maakt squeeze() het compacter (.tight) en zo nodig nog compacter (.tighter);
+   de games blokkeren scrollen, dus alles moet passen */
+.tight .panel{gap:10px;padding:18px 16px 16px}
+.tight .logo{width:64px;height:64px}
+.tight .panel h1{font-size:30px}
+.tight .panel h2{font-size:24px}
+.tight .panel p{font-size:14px;line-height:1.35}
+.tight .levels{gap:6px}
+.tight .levels button{min-height:46px;padding:5px 12px}
+.tight .levels .nm b{font-size:15px}
+.tight .go{height:50px;font-size:18px}
+.tight .check{width:48px;height:48px;border-radius:16px}
+.tight .stats div{padding:8px 4px}
+.tighter .logo,.tighter .check{display:none}
+.tighter .panel > button.link{padding:6px}
 @media (max-height:360px){
-  .overlay{padding:10px}
-  .panel{gap:8px;padding:12px 14px}
-  .panel h1{font-size:24px}
-  .panel p{font-size:13px}
-  .levels button{min-height:40px}
-  .go{height:44px}
+  .overlay.tighter{padding:10px}
+  .tighter .panel{gap:8px;padding:12px 14px}
+  .tighter .panel h1{font-size:24px}
+  .tighter .panel p{font-size:13px}
+  .tighter .levels button{min-height:40px}
+  .tighter .go{height:44px}
 }
-@media (max-height:620px) and (max-width:360px){
-  .panel p{font-size:13px}
+@media (max-width:360px){
+  .tighter .panel p{font-size:13px}
 }
 /* liggend op een telefoon: bord links, titel, voortgang en knoppen rechts */
 @media (orientation:landscape) and (max-height:520px){
@@ -252,7 +249,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=7.5"></script>
+<script src="../../version.js?v=7.6"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -363,7 +360,18 @@ function fit(){
   document.documentElement.style.setProperty('--cell',Math.max(22,size)+'px');
   $('board').style.gridTemplateColumns=`repeat(${cols},var(--cell))`;
 }
-addEventListener('resize',fit);
+addEventListener('resize',()=>{fit();squeeze();});
+
+// een open paneel dat niet past wordt stap voor stap compacter
+function squeeze(){
+  document.querySelectorAll('.overlay:not([hidden])').forEach(o=>{
+    // niet scrollHeight: een gecentreerd paneel dat te hoog is steekt ook boven uit, en dat telt daar niet mee
+    const cs=getComputedStyle(o),room=()=>o.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+    o.classList.remove('tight','tighter');
+    for(const c of['tight','tighter'])if(o.querySelector('.panel').offsetHeight>room())o.classList.add(c);
+  });
+}
+try{document.fonts.ready.then(squeeze)}catch(e){}
 
 function reset(){
   [cols,rows]=dims();wrap=LEVELS[level].wrap;
@@ -458,7 +466,7 @@ function win(){
   $('frecbox').classList.toggle('new',rec);
   $('freclabel').textContent=rec?'Nieuw record':'Record';
   $('frec').textContent=fmt(best);
-  overTimer=setTimeout(()=>{$('over').hidden=false;$('again').focus();},900);
+  overTimer=setTimeout(()=>{$('over').hidden=false;squeeze();$('again').focus();},900);
 }
 
 // keuzelijst met moeilijkheden en hun record
@@ -479,7 +487,7 @@ function openMenu(){
   if(state==='play'){clearInterval(timer);timer=null;tick();}
   picked=level;drawLevels();
   $('resume').hidden=state!=='play';
-  $('over').hidden=true;$('start').hidden=false;$('go').focus();
+  $('over').hidden=true;$('start').hidden=false;squeeze();$('go').focus();
 }
 function start(){
   level=picked;try{localStorage.setItem('netwerk-level',level)}catch(e){}
@@ -536,7 +544,7 @@ $('resume').addEventListener('click',()=>{$('start').hidden=true;if(state==='pla
 $('again').addEventListener('click',()=>{picked=level;start();});
 $('change').addEventListener('click',openMenu);
 
-best=readBest(level);drawLevels();reset();
+best=readBest(level);drawLevels();reset();squeeze();
 </script>
 
 </body></html>
