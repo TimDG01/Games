@@ -64,13 +64,22 @@ button{font-family:inherit;color:inherit}
 .t.lock::after{content:'';position:absolute;right:calc(var(--cell) * .08);top:calc(var(--cell) * .08);width:calc(var(--cell) * .14);height:calc(var(--cell) * .14);
   border-radius:2px;background:var(--muted)}
 .t.on.lock::after{background:var(--accent)}
+/* door een hint vastgezet: rond blauw stipje, en even oplichten */
+.t.hint::after{border-radius:99px;background:#6cb6ff!important}
+.t.flash{animation:flash .8s ease-out}
+@keyframes flash{30%{background:#2d4a78}}
+.clock.plus{animation:plus .9s ease-out}
+@keyframes plus{30%{background:#5a2f3a}}
 .done .t.on{animation:glow .7s ease-out}
 @keyframes glow{50%{background:#3a3550}}
 .bar{display:flex;align-items:center;gap:10px}
-.bar button{flex:1;height:52px;border:0;border-radius:16px;background:var(--panel);font-size:15px;font-weight:600;
-  display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.bar button{flex:1;min-width:0;height:56px;border:0;border-radius:16px;background:var(--panel);font-size:13px;font-weight:600;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer}
+.bar button[hidden]{display:none}
+.bar button b{font-weight:600}
+#hint b i{font-style:normal;color:var(--accent)}
 .bar button:disabled{opacity:.45;cursor:default}
-.moves{flex:none;width:76px;height:52px;border-radius:16px;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.moves{flex:none;width:68px;height:56px;border-radius:16px;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center}
 .moves b{font-family:var(--display);font-weight:400;font-size:17px;line-height:1}
 .moves span{font-size:11px;color:var(--muted);margin-top:3px}
 button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
@@ -140,12 +149,16 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   <div class="bar">
     <button id="undo" disabled>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/></svg>
-      Ongedaan
+      <b>Ongedaan</b>
+    </button>
+    <button id="hint">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 00-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0012 3z"/></svg>
+      <b>Hint <i id="hintn">3</i></b>
     </button>
     <div class="moves"><b id="moves">0</b><span>zetten</span></div>
     <button id="restart">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
-      Nieuw
+      <b>Nieuw</b>
     </button>
   </div>
 
@@ -167,7 +180,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
         <rect x="20" y="141" width="16" height="10" rx="2" fill="#2b3352"/>
       </svg>
       <h1>NETWERK</h1>
-      <p>Draai de buizen tot elke computer verbonden is met de server. Tik om een tegel te draaien, houd vast (of klik rechts) om hem vast te zetten.</p>
+      <p>Draai de buizen tot elke computer verbonden is met de server. Tik om een tegel te draaien, houd vast (of klik rechts) om hem vast te zetten. Een hint zet een tegel goed, maar kost 30 seconden.</p>
       <div class="levels" id="levels" role="radiogroup" aria-label="Moeilijkheid"></div>
       <button class="go" id="go">SPEEL</button>
       <button class="link" id="resume" hidden>Verder spelen</button>
@@ -191,24 +204,25 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=7.3"></script>
+<script src="../../version.js?v=7.4"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
 
 /* moeilijkheid: kolommen × rijen (staand scherm); bij expert lopen de randen door naar de overkant */
 const LEVELS={
-  makkelijk:{cols:5,rows:5, wrap:false,name:'Makkelijk',info:'5 × 5'},
-  normaal:  {cols:7,rows:9, wrap:false,name:'Normaal',  info:'7 × 9'},
-  moeilijk: {cols:8,rows:12,wrap:false,name:'Moeilijk', info:'8 × 12'},
-  expert:   {cols:8,rows:12,wrap:true, name:'Expert',   info:'8 × 12 · randen lopen door'},
+  makkelijk:{cols:5,rows:5, wrap:false,hints:3,name:'Makkelijk',info:'5 × 5'},
+  normaal:  {cols:7,rows:9, wrap:false,hints:3,name:'Normaal',  info:'7 × 9'},
+  moeilijk: {cols:8,rows:12,wrap:false,hints:2,name:'Moeilijk', info:'8 × 12'},
+  expert:   {cols:8,rows:12,wrap:true, hints:0,name:'Expert',   info:'8 × 12 · randen lopen door'},
 };
+const PENALTY=30;   // seconden extra per hint
 const bestKey=l=>'netwerk-best-'+l;
 const fmt=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
 
 let level='makkelijk'; try{const l=localStorage.getItem('netwerk-level');if(LEVELS[l])level=l}catch(e){}
 let picked=level;
-let cols,rows,wrap,server,sol,rot,locked,cells,history,moves,state='start',t0=0,elapsed=0,timer=null,overTimer=null,best=0;
+let cols,rows,wrap,server,sol,rot,locked,hinted,hintsLeft,hintsUsed,cells,history,moves,state='start',t0=0,elapsed=0,timer=null,overTimer=null,best=0;
 
 function readBest(l){try{return +localStorage.getItem(bestKey(l))||0}catch(e){return 0}}
 
@@ -306,7 +320,8 @@ addEventListener('resize',fit);
 function reset(){
   [cols,rows]=dims();wrap=LEVELS[level].wrap;
   clearTimeout(overTimer);clearInterval(timer);timer=null;elapsed=0;moves=0;history=[];state='ready';
-  generate();locked=sol.map(()=>false);
+  generate();locked=sol.map(()=>false);hinted=sol.map(()=>false);
+  hintsLeft=LEVELS[level].hints;hintsUsed=0;$('hint').hidden=!hintsLeft;
   const b=$('board');b.innerHTML='';b.classList.remove('done');cells=[];
   for(let i=0;i<sol.length;i++){
     const t=document.createElement('button');t.type='button';t.className='t';t.dataset.i=i;t.setAttribute('role','gridcell');
@@ -320,18 +335,22 @@ function reset(){
 function draw(){
   const o=online();
   cells.forEach((t,i)=>{
-    t.classList.toggle('on',o.on[i]);t.classList.toggle('lock',locked[i]);
+    t.classList.toggle('on',o.on[i]);t.classList.toggle('lock',locked[i]);t.classList.toggle('hint',hinted[i]);
     t.querySelector('.p').style.transform=`rotate(${rot[i]*90}deg)`;
-    t.setAttribute('aria-label',kind(i)+', rij '+(Math.floor(i/cols)+1)+' kolom '+(i%cols+1)+(o.on[i]?', verbonden':'')+(locked[i]?', vast':''));
+    t.setAttribute('aria-label',kind(i)+', rij '+(Math.floor(i/cols)+1)+' kolom '+(i%cols+1)+(o.on[i]?', verbonden':'')+(hinted[i]?', vast door hint':locked[i]?', vast':''));
   });
   $('lit').textContent=o.lit;$('total').textContent=o.total;
   $('meter').style.width=(o.total?o.lit/o.total*100:0)+'%';
   $('moves').textContent=moves;
   $('undo').disabled=!history.length||state!=='play';
+  $('hintn').textContent=hintsLeft;$('hint').disabled=!hintsLeft||state==='over';
+  $('hint').setAttribute('aria-label','Hint, nog '+hintsLeft+', kost '+PENALTY+' seconden');
   return o;
 }
 
-function tick(){elapsed=Math.floor((performance.now()-t0)/1000);$('time').textContent=fmt(elapsed);}
+// de getoonde tijd is de speeltijd plus de straf voor hints
+const total=()=>elapsed+hintsUsed*PENALTY;
+function tick(){elapsed=Math.floor((performance.now()-t0)/1000);$('time').textContent=fmt(total());}
 function run(){t0=performance.now()-elapsed*1000;clearInterval(timer);timer=setInterval(tick,250);}
 
 function spin(i){
@@ -346,6 +365,7 @@ function spin(i){
 
 function toggleLock(i){
   if(state!=='ready'&&state!=='play')return;
+  if(hinted[i]){beep(180,0.06,'square',0.05);return;}
   locked[i]=!locked[i];draw();beep(locked[i]?760:380,0.05);
   try{navigator.vibrate&&navigator.vibrate(15)}catch(e){}
 }
@@ -355,14 +375,38 @@ function undo(){
   const i=history.pop();rot[i]--;moves--;draw();beep(340,0.04);
 }
 
+// hint: eerst een tegel die je zelf verkeerd hebt vastgezet, dan een verkeerde tegel waar het verlichte deel naartoe wijst,
+// anders een willekeurige verkeerde tegel. Die draait in de stand van de oplossing en blijft vast staan.
+function hint(){
+  if((state!=='ready'&&state!=='play')||!hintsLeft)return;
+  const wrong=[],on=online().on;
+  sol.forEach((v,i)=>{if(mask(i)!==v)wrong.push(i)});
+  const near=wrong.filter(i=>[0,1,2,3].some(d=>sol[i]>>d&1&&on[nbr(i,d)]));
+  // het best: het verlichte deel wijst al naar deze tegel, dus goed draaien laat meteen meer oplichten
+  const grows=near.filter(i=>[0,1,2,3].some(d=>{const j=nbr(i,d);return sol[i]>>d&1&&on[j]&&mask(j)>>(d+2)%4&1}));
+  const pool=[wrong.filter(i=>locked[i]),wrong.filter(i=>i===server),grows,near,wrong].find(a=>a.length);
+  if(!pool)return;
+  const i=pool[Math.floor(Math.random()*pool.length)];
+  while(mask(i)!==sol[i])rot[i]++;
+  locked[i]=hinted[i]=true;history=history.filter(j=>j!==i);
+  hintsLeft--;hintsUsed++;
+  if(state==='ready'){state='play';run();}
+  tick();
+  const c=$('time').parentNode;c.classList.remove('plus');void c.offsetWidth;c.classList.add('plus');
+  cells[i].classList.remove('flash');void cells[i].offsetWidth;cells[i].classList.add('flash');
+  beep(880,0.08);
+  if(draw().all)win();
+}
+
 function win(){
   state='over';clearInterval(timer);timer=null;tick();
   $('board').classList.add('done');$('undo').disabled=true;
   [523,659,784,1047].forEach((f,k)=>setTimeout(()=>beep(f,0.12),k*110));
-  const rec=!best||elapsed<best;
-  if(rec){best=elapsed;try{localStorage.setItem(bestKey(level),best)}catch(e){}}
-  $('overmsg').textContent=$('total').textContent+' computers verbonden met de server · '+LEVELS[level].name;
-  $('ftime').textContent=fmt(elapsed);$('fmoves').textContent=moves;
+  const score=total(),rec=!best||score<best;
+  if(rec){best=score;try{localStorage.setItem(bestKey(level),best)}catch(e){}}
+  $('overmsg').textContent=$('total').textContent+' computers verbonden met de server · '+LEVELS[level].name+
+    (hintsUsed?' · '+hintsUsed+(hintsUsed===1?' hint':' hints')+' (+'+hintsUsed*PENALTY+' s)':'');
+  $('ftime').textContent=fmt(score);$('fmoves').textContent=moves;
   $('frecbox').classList.toggle('new',rec);
   $('freclabel').textContent=rec?'Nieuw record':'Record';
   $('frec').textContent=fmt(best);
@@ -377,7 +421,7 @@ function drawLevels(){
     b.setAttribute('aria-checked',id===picked);
     const r=readBest(id);
     b.innerHTML=`<span class="dot"></span><span class="nm"><b></b><span></span></span><span class="rec"><span>Record</span><b>${r?fmt(r):'–'}</b></span>`;
-    b.querySelector('.nm b').textContent=L.name;b.querySelector('.nm span').textContent=L.info;
+    b.querySelector('.nm b').textContent=L.name;b.querySelector('.nm span').textContent=L.info+' · '+(L.hints?L.hints+' hints':'geen hints');
     b.addEventListener('click',()=>{picked=id;drawLevels();});
     box.appendChild(b);
   }
@@ -436,6 +480,7 @@ board.addEventListener('keydown',e=>{
 });
 
 $('undo').addEventListener('click',undo);
+$('hint').addEventListener('click',hint);
 $('restart').addEventListener('click',()=>{$('over').hidden=true;best=readBest(level);reset();});
 $('menu').addEventListener('click',openMenu);
 $('go').addEventListener('click',start);
