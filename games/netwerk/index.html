@@ -120,6 +120,54 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
 .stats b{font-family:var(--display);font-weight:400;font-size:18px}
 .stats .new{border-color:var(--accent)}
 .stats .new span{color:var(--accent);font-weight:600}
+
+/* lage schermen (kleine telefoons, liggend): de games blokkeren scrollen, dus alles moet passen */
+@media (max-height:760px){
+  .panel{gap:10px;padding:18px 16px 16px}
+  .logo{width:64px;height:64px}
+  .panel h1{font-size:30px}
+  .panel h2{font-size:24px}
+  .panel p{font-size:14px;line-height:1.35}
+  .levels{gap:6px}
+  .levels button{min-height:46px;padding:5px 12px}
+  .levels .nm b{font-size:15px}
+  .go{height:50px;font-size:18px}
+  .check{width:48px;height:48px;border-radius:16px}
+  .stats div{padding:8px 4px}
+}
+@media (max-height:620px){
+  .logo,.check{display:none}
+  .panel > button.link{padding:6px}
+}
+@media (max-height:360px){
+  .overlay{padding:10px}
+  .panel{gap:8px;padding:12px 14px}
+  .panel h1{font-size:24px}
+  .panel p{font-size:13px}
+  .levels button{min-height:40px}
+  .go{height:44px}
+}
+@media (max-height:620px) and (max-width:360px){
+  .panel p{font-size:13px}
+}
+/* liggend op een telefoon: bord links, titel, voortgang en knoppen rechts */
+@media (orientation:landscape) and (max-height:520px){
+  #wrap{display:grid;grid-template-columns:minmax(0,1fr) 250px;grid-template-rows:auto auto 1fr auto;
+    grid-template-areas:"stage top" "stage status" "stage ." "stage bar";column-gap:16px;row-gap:10px;
+    padding:calc(env(safe-area-inset-top,0px) + 10px) calc(env(safe-area-inset-right,0px) + 16px) calc(env(safe-area-inset-bottom,0px) + 10px) calc(env(safe-area-inset-left,0px) + 16px)}
+  #wrap > *{max-width:none}
+  .top{grid-area:top}.status{grid-area:status}.stage{grid-area:stage;height:100%}.bar{grid-area:bar;flex-wrap:wrap}
+  .title b,.clock svg{display:none}
+  .clock{padding:0 10px}
+  .bar button{flex:1 1 40%;height:48px}
+  .moves{flex:1 1 100%;height:40px;flex-direction:row;gap:6px;order:-1}
+  .moves span{margin-top:0}
+  .overlay .panel{max-width:560px}
+  /* startscherm in twee kolommen: uitleg en knop links, moeilijkheden rechts */
+  #start .panel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;max-width:680px;align-content:center}
+  #start .panel > *{grid-column:1}
+  #start .levels{grid-column:2;grid-row:1 / span 7;align-self:center}
+}
 </style>
 </head><body>
 
@@ -204,7 +252,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=7.4"></script>
+<script src="../../version.js?v=7.5"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
