@@ -163,7 +163,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=7.6"></script>
+<script src="../../version.js?v=7.7"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -255,7 +255,9 @@ function place(i){
   if(sum%10===d){
     // raak: de buren verdwijnen, en je eigen cijfer ook
     for(const j of nb)grid[j]=null;
-    const pts=nb.length*nb.length*10;score+=pts;
+    // 1e tegel 10, 2e 20, 3e 30, ...: 2 tegels = 30, 4 tegels = 100
+    let pts=0;for(let k=0;k<nb.length;k++)pts+=(k+1)*10;
+    score+=pts;
     render(nb.concat([i]),[]);
     say(mode==='easy'?`<span class="ok">${txt}</span> · <b>+${pts}</b>`:`<span class="ok">Raak! ${nb.length===1?'1 tegel':nb.length+' tegels'} weg</span> · <b>+${pts}</b>`);
     [523,659,784,1047].slice(0,Math.min(4,1+Math.floor(nb.length/2))).forEach((f,k)=>setTimeout(()=>beep(f,0.1),k*80));
