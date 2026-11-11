@@ -136,7 +136,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=8.4"></script>
+<script src="../../version.js?v=8.5"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -218,7 +218,6 @@ function layout(){
   $('stockslot').style.visibility=waste.length?'visible':'hidden';
   els.forEach((el,c)=>{const l=loc[c];el.setAttribute('aria-label',up[c]?SUITS[suit(c)]+' '+RNAME[rank(c)]:l.p==='s'?'Pot: draai een kaart om':'Dichte kaart');});
 }
-addEventListener('resize',()=>layout());
 
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
 function deal(){
@@ -347,11 +346,38 @@ const board=$('board');
 let px=0,py=0;   // waar de laatste aanraking begon; een doorgestuurde tik kent zijn eigen plek niet
 board.addEventListener('pointerdown',e=>{
   px=e.clientX;py=e.clientY;
+  if(dg&&!dg.on)dg=null;   // een oude aanraking die nooit losgelaten is
   if(state!=='play'||e.button>0||dg)return;
   const el=e.target.closest('.card');if(!el)return;
   const l=loc[+el.dataset.c], seq=seqOf(l);
   if(seq.length)dg={id:e.pointerId,x:e.clientX,y:e.clientY,l,seq,on:false};
 });
+/* Een aanraking die nooit netjes eindigt (de telefoon draait terwijl je duim op een kaart ligt) mag het slepen niet blokkeren:
+   we laten ze los zodra het scherm van maat verandert, en ook als er ergens buiten het bord wordt losgelaten. */
+function letGo(){
+  if(!dg)return;
+  for(const c of dg.seq)els[c].classList.remove('drag');
+  dg=null;
+}
+addEventListener('pointerup',e=>{if(dg&&e.pointerId===dg.id&&!dg.on)dg=null;});
+addEventListener('pointercancel',e=>{if(dg&&e.pointerId===dg.id&&!dg.on)dg=null;});
+/* Opnieuw indelen zodra de ruimte voor de kaarten verandert. Na het draaien van een telefoon komt de juiste maat soms
+   pas na de resize-melding; daarom meten we ook de ruimte zelf, en kijken we kort daarna nog eens. */
+let relayTimer=null;
+function relayout(){
+  letGo();
+  if(document.scrollingElement)document.scrollingElement.scrollTop=document.scrollingElement.scrollLeft=0;
+  layout();
+}
+function resized(){relayout();clearTimeout(relayTimer);relayTimer=setTimeout(relayout,350);}
+addEventListener('resize',resized);
+addEventListener('orientationchange',resized);
+if(window.visualViewport)visualViewport.addEventListener('resize',resized);
+try{
+  let seen='';
+  new ResizeObserver(()=>{const st=document.querySelector('.stage'), now=st.clientWidth+'x'+st.clientHeight;
+    if(now!==seen){seen=now;relayout();}}).observe(document.querySelector('.stage'));
+}catch(e){}
 board.addEventListener('pointermove',e=>{
   if(!dg||e.pointerId!==dg.id)return;
   const dx=e.clientX-dg.x, dy=e.clientY-dg.y;
