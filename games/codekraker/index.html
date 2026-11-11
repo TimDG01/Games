@@ -97,7 +97,9 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   .panel{padding:14px 18px;gap:8px;max-width:440px}
   .panel h1{font-size:24px}
   .panel p{font-size:14px;line-height:1.3}
-  .legend{display:none}
+  .legend,.intro,#start .ver{display:none}
+  .levels button{padding:7px 2px}
+  #leveltext{font-size:13px}
   .big{font-size:36px}
   .panel > button{padding:10px 18px;font-size:18px}
 }
@@ -132,7 +134,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   <div class="overlay" id="start">
     <div class="panel">
       <h1>Codekraker</h1>
-      <p>De computer verstopt een kleurcode. Raad ze in zo weinig mogelijk pogingen. Na elke poging krijg je een aanwijzing:</p>
+      <p class="intro">De computer verstopt een kleurcode. Raad ze in zo weinig mogelijk pogingen. Na elke poging krijg je een aanwijzing:</p>
       <div class="legend">
         <span><i style="background:#7bd88f"></i>juiste kleur op de juiste plek</span>
         <span><i style="background:#f4f0e6"></i>juiste kleur, maar op een andere plek</span>
@@ -141,6 +143,10 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
         <button data-level="makkelijk">Makkelijk</button>
         <button data-level="normaal">Normaal</button>
         <button data-level="moeilijk">Moeilijk</button>
+      </div>
+      <div class="levels" role="group" aria-label="Dubbele kleuren">
+        <button data-dup="0">Elke kleur 1×</button>
+        <button data-dup="1">Dubbel mag</button>
       </div>
       <p id="leveltext"></p>
       <button id="go">Start</button>
@@ -160,16 +166,17 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=7.9"></script>
+<script src="../../version.js?v=8.0"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
 
-/* moeilijkheid: lengte van de code, aantal kleuren, mag een kleur dubbel, aantal pogingen */
+/* moeilijkheid: lengte van de code, aantal kleuren, aantal pogingen.
+   Los daarvan kies je of een kleur meer dan één keer in de code mag zitten (dup); standaard niet. */
 const LEVELS={
-  makkelijk:{n:4,colors:6,dup:false,tries:10,name:'Makkelijk',text:'4 plekken, 6 kleuren. Elke kleur zit hoogstens één keer in de code.'},
-  normaal:  {n:4,colors:6,dup:true, tries:10,name:'Normaal',  text:'4 plekken, 6 kleuren. Een kleur kan meer dan één keer voorkomen.'},
-  moeilijk: {n:5,colors:8,dup:true, tries:12,name:'Moeilijk', text:'5 plekken, 8 kleuren. Een kleur kan meer dan één keer voorkomen.'},
+  makkelijk:{n:4,colors:6,tries:10,name:'Makkelijk'},
+  normaal:  {n:4,colors:8,tries:10,name:'Normaal'},
+  moeilijk: {n:5,colors:8,tries:12,name:'Moeilijk'},
 };
 /* elke kleur heeft ook een eigen vorm, zodat je ze zonder kleur uit elkaar houdt */
 const COLORS=[
@@ -183,20 +190,27 @@ const COLORS=[
   {c:'#e58fd0',name:'roze',  d:'M1.8 3.9h6.4v2.2H1.8z'},
 ];
 const pegHTML=k=>`<span class="peg" style="--c:${COLORS[k].c}"><svg viewBox="0 0 10 10" aria-hidden="true"><path fill-rule="evenodd" d="${COLORS[k].d}"/></svg></span>`;
-const bestKey=l=>'codekraker-best-'+l;
+const bestKey=l=>'codekraker-record-'+l+(dup?'-dubbel':'');
 
-let level='normaal'; try{const l=localStorage.getItem('codekraker-level');if(LEVELS[l])level=l}catch(e){}
+let level='normaal',dup=false; try{const l=localStorage.getItem('codekraker-level');if(LEVELS[l])level=l;dup=localStorage.getItem('codekraker-dubbel')==='1'}catch(e){}
 let L,code,rows,cur,sel,state='start',t0=0,elapsed=0,timer=null,overTimer=null,best=0,fresh=-1;
 
 function readBest(l){try{return +localStorage.getItem(bestKey(l))||0}catch(e){return 0}}
 const tries=n=>n===1?'1 poging':n+' pogingen';
-function showBest(){$('best').textContent='Record '+(best?tries(best):'–')+' · '+LEVELS[level].name;}
+function showBest(){$('best').textContent='Record '+(best?tries(best):'–')+' · '+LEVELS[level].name+(dup?' · dubbel':'');}
 function setLevel(l){
   level=l;try{localStorage.setItem('codekraker-level',l)}catch(e){}
   best=readBest(l);showBest();
-  $('leveltext').textContent=LEVELS[l].text+' Je krijgt '+LEVELS[l].tries+' pogingen.';
+  const v=LEVELS[l];
+  $('leveltext').textContent=v.n+' plekken, '+v.colors+' kleuren, '+v.tries+' pogingen. '+
+    (dup?'Een kleur kan meer dan één keer in de code zitten.':'Elke kleur zit hoogstens één keer in de code.');
   document.querySelectorAll('[data-level]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.level===l));
+  document.querySelectorAll('[data-dup]').forEach(b=>b.setAttribute('aria-pressed',(b.dataset.dup==='1')===dup));
 }
+document.querySelectorAll('[data-dup]').forEach(b=>b.addEventListener('click',()=>{
+  dup=b.dataset.dup==='1';try{localStorage.setItem('codekraker-dubbel',dup?'1':'0')}catch(e){}
+  setLevel(level);reset();
+}));
 document.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',()=>{setLevel(b.dataset.level);reset();}));
 
 /* geluid: kleine piep, start pas na de eerste tik */
@@ -213,7 +227,7 @@ function makeCode(){
   const pool=[...Array(L.colors).keys()], out=[];
   for(let i=0;i<L.n;i++){
     const j=Math.floor(Math.random()*pool.length);
-    out.push(pool[j]);if(!L.dup)pool.splice(j,1);
+    out.push(pool[j]);if(!dup)pool.splice(j,1);
   }
   return out;
 }

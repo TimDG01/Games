@@ -69,7 +69,7 @@ footer{max-width:960px;width:100%;margin:32px auto 0;color:var(--muted);font-siz
 </main>
 <footer>Binnenkort meer games · Versie <span id="version"></span></footer>
 
-<script src="version.js?v=7.9"></script>
+<script src="version.js?v=8.0"></script>
 <script>
 document.getElementById('version').textContent = SITE_VERSION;
 /*
@@ -399,9 +399,9 @@ const GAMES = [
   {
     title: 'Codekraker',
     href: 'games/codekraker/',
-    description: 'De computer verstopt een kleurcode. Raad ze in zo weinig mogelijk pogingen, met na elke poging een aanwijzing. Drie moeilijkheden.',
+    description: 'De computer verstopt een kleurcode. Raad ze in zo weinig mogelijk pogingen, met na elke poging een aanwijzing. Drie moeilijkheden, met of zonder dubbele kleuren.',
     tag: 'Puzzel',
-    bestKey: 'codekraker-best-normaal',
+    bestKey: 'codekraker-record-normaal',
     bestLabel: n => (n === 1 ? '1 poging' : n + ' pogingen') + ' (normaal)',
     thumb: `
       <rect width="160" height="90" fill="#10162a"/>
