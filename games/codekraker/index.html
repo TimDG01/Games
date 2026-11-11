@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Codekraker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;600&display=swap">
+<style>
+/* Layout: tellers bovenaan, de pogingen in het midden, kleuren en knoppen onderaan, panelen erover.
+   Op een laag, liggend scherm staan de kleuren en knoppen rechts naast het veld. */
+:root{
+  --bg:#141a2e; --bg-deep:#0b0f1d; --fg:#f4f0e6; --muted:#9097b5; --accent:#ffb347; --panel:#1d2440;
+  --display:'Bungee', Impact, 'Arial Black', sans-serif;
+  --body:'Outfit', system-ui, -apple-system, sans-serif;
+  --peg:36px; --key:44px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+  padding:calc(env(safe-area-inset-top,0px) + 12px) max(12px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 14px) max(12px,env(safe-area-inset-left,0px))}
+.top{width:100%;max-width:520px;height:44px;flex:none;display:grid;grid-template-columns:40px 1fr 1fr 40px 40px;align-items:center;gap:6px}
+.stat{text-align:center;line-height:1}
+.stat b{display:block;font-family:var(--display);font-weight:400;font-size:26px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+#best{flex:none;margin-top:8px;font-size:13px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;text-align:center}
+.main{flex:1;min-height:0;width:100%;max-width:520px;display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.stage{flex:1;min-height:0;min-width:0;display:grid;place-items:center}
+#board{display:flex;flex-direction:column;gap:4px}
+.row{display:flex;align-items:center;gap:6px;padding:3px 8px;border-radius:calc(var(--peg) * .5 + 3px);border:0}
+.row.cur{background:var(--panel);box-shadow:0 0 0 2px #2f3860 inset}
+.row.new .fb i{animation:pop .3s ease-out backwards}
+.row.new .fb i:nth-child(2){animation-delay:.07s}.row.new .fb i:nth-child(3){animation-delay:.14s}
+.row.new .fb i:nth-child(4){animation-delay:.21s}.row.new .fb i:nth-child(5){animation-delay:.28s}
+@keyframes pop{0%{transform:scale(0)}70%{transform:scale(1.3)}}
+.slot{width:var(--peg);height:var(--peg);flex:none;border-radius:50%;border:0;padding:0;background:#232b4a;box-shadow:inset 0 2px 0 #171d36;
+  display:grid;place-items:center;color:inherit}
+.row.cur .slot{cursor:pointer;background:#2f3860}
+.row.cur .slot.sel{box-shadow:0 0 0 2px var(--accent)}
+.peg{width:100%;height:100%;border-radius:50%;background:var(--c);box-shadow:inset 0 calc(var(--peg) * -.09) 0 rgba(11,15,29,.25), inset 0 2px 0 rgba(255,255,255,.3);
+  display:grid;place-items:center;pointer-events:none}
+.peg svg{width:62%;height:62%;fill:rgba(11,15,29,.38)}
+/* het antwoord: groen = juiste kleur op de juiste plek, wit = juiste kleur op een andere plek */
+.fb{display:grid;grid-template-columns:repeat(var(--fc),calc(var(--peg) * .36));gap:3px;margin-left:4px;flex:none}
+.fb i{width:calc(var(--peg) * .36);height:calc(var(--peg) * .36);border-radius:50%;background:#232b4a}
+.fb i.x{background:#7bd88f}
+.fb i.o{background:var(--fg)}
+.controls{flex:none;display:flex;flex-direction:column;gap:10px;align-items:center}
+#palette{display:flex;gap:6px;justify-content:center}
+.key{width:var(--key);height:var(--key);border-radius:50%;border:0;padding:0;background:none;cursor:pointer}
+.key .peg{--peg:var(--key)}
+.key:active{transform:scale(.92)}
+.actions{display:flex;gap:8px;width:100%;max-width:340px}
+.actions button{font-family:var(--display);font-size:16px;border:0;border-radius:4px;padding:12px 10px;cursor:pointer}
+#del{flex:none;color:var(--fg);background:#2a3358;box-shadow:0 4px 0 #1a2140}
+#check{flex:1;color:var(--bg-deep);background:var(--accent);box-shadow:0 4px 0 #b86e14}
+.actions button:active{transform:translateY(3px);box-shadow:0 1px 0 #1a2140}
+#check:active{box-shadow:0 1px 0 #b86e14}
+.actions button:disabled{opacity:.4;cursor:default;transform:none}
+.home{width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
+.home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.restart{width:40px;height:40px;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);border:0;font-size:20px;cursor:pointer;padding:0}
+/* de terugknop blijft boven de pop-ups, zodat je altijd naar het overzicht kunt */
+.home{position:relative;z-index:5}
+.overlay{position:fixed;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62)}
+.overlay[hidden]{display:none}
+.panel{background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:28px 24px;max-width:340px;width:100%;text-align:center;
+  display:flex;flex-direction:column;gap:14px;box-shadow:8px 8px 0 var(--bg-deep)}
+.panel h1{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.05;margin:0;text-wrap:balance}
+.panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.45}
+.legend{display:flex;flex-direction:column;gap:5px;align-items:flex-start;align-self:center;font-size:14px;color:var(--muted);text-align:left}
+.legend span{display:flex;align-items:center;gap:8px}
+.legend i{width:12px;height:12px;flex:none;border-radius:50%}
+.ver{font-size:12px;color:var(--muted);letter-spacing:.08em}
+.big{font-family:var(--display);font-size:56px;line-height:1;color:var(--accent)}
+#code{display:flex;gap:6px;justify-content:center;--peg:34px}
+#code .slot{background:none;box-shadow:none}
+.panel > button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
+  padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
+.panel > button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+.levels{display:flex;gap:6px}
+.levels button{flex:1;font-family:var(--display);font-size:13px;padding:10px 2px;color:var(--fg);background:transparent;border:2px solid #2f3860;border-radius:4px;cursor:pointer}
+.levels button[aria-pressed="true"]{color:var(--bg-deep);background:var(--accent);border-color:var(--accent)}
+#leveltext{font-size:14px}
+.panel > button.link{font-family:var(--body);font-size:14px;color:var(--muted);background:none;box-shadow:none;padding:4px;text-decoration:underline}
+.panel > button.link:active{transform:none}
+
+/* laag scherm (telefoon op zijn kant): kleuren en knoppen naast het veld, en compactere panelen */
+@media (orientation:landscape) and (max-height:520px){
+  #best{display:none}
+  .main{flex-direction:row;max-width:none;align-items:stretch;gap:16px;margin-top:6px}
+  .controls{width:212px;justify-content:center}
+  #palette{flex-wrap:wrap}
+  .actions{flex-direction:column}
+  .panel{padding:14px 18px;gap:8px;max-width:440px}
+  .panel h1{font-size:24px}
+  .panel p{font-size:14px;line-height:1.3}
+  .legend{display:none}
+  .big{font-size:36px}
+  .panel > button{padding:10px 18px;font-size:18px}
+}
+@media (max-height:620px) and (orientation:portrait){
+  .panel{padding:18px 18px;gap:10px}
+  .panel p{font-size:14px;line-height:1.35}
+  .big{font-size:44px}
+}
+</style>
+</head><body>
+
+<div id="wrap">
+  <div class="top">
+    <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
+    <div class="stat"><b id="turn">1/10</b><span>Poging</span></div>
+    <div class="stat"><b id="time">0</b><span>Tijd</span></div>
+    <button class="sndbtn" aria-label="Geluid aan of uit"></button>
+    <button class="restart" id="restart" aria-label="Opnieuw beginnen">&#8635;</button>
+  </div>
+  <div id="best">Record –</div>
+  <div class="main">
+    <div class="stage"><div id="board" aria-label="Pogingen"></div></div>
+    <div class="controls">
+      <div id="palette" role="group" aria-label="Kleuren"></div>
+      <div class="actions">
+        <button id="del" aria-label="Laatste kleur wissen">&larr; Wis</button>
+        <button id="check" disabled>Controleer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="start">
+    <div class="panel">
+      <h1>Codekraker</h1>
+      <p>De computer verstopt een kleurcode. Raad ze in zo weinig mogelijk pogingen. Na elke poging krijg je een aanwijzing:</p>
+      <div class="legend">
+        <span><i style="background:#7bd88f"></i>juiste kleur op de juiste plek</span>
+        <span><i style="background:#f4f0e6"></i>juiste kleur, maar op een andere plek</span>
+      </div>
+      <div class="levels" role="group" aria-label="Moeilijkheid">
+        <button data-level="makkelijk">Makkelijk</button>
+        <button data-level="normaal">Normaal</button>
+        <button data-level="moeilijk">Moeilijk</button>
+      </div>
+      <p id="leveltext"></p>
+      <button id="go">Start</button>
+      <div class="ver">Versie <span id="ver"></span></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="over" hidden>
+    <div class="panel">
+      <h1 id="overtitle">Code gekraakt!</h1>
+      <div id="code" aria-label="De code"></div>
+      <div class="big" id="final">0</div>
+      <p id="overmsg">pogingen</p>
+      <button id="again">Opnieuw</button>
+      <button class="link" id="change">Andere moeilijkheid</button>
+    </div>
+  </div>
+</div>
+
+<script src="../../version.js?v=7.8"></script>
+<script>
+const $=id=>document.getElementById(id);
+try{$('ver').textContent=SITE_VERSION}catch(e){}
+
+/* moeilijkheid: lengte van de code, aantal kleuren, mag een kleur dubbel, aantal pogingen */
+const LEVELS={
+  makkelijk:{n:4,colors:6,dup:false,tries:10,name:'Makkelijk',text:'4 plekken, 6 kleuren. Elke kleur zit hoogstens één keer in de code.'},
+  normaal:  {n:4,colors:6,dup:true, tries:10,name:'Normaal',  text:'4 plekken, 6 kleuren. Een kleur kan meer dan één keer voorkomen.'},
+  moeilijk: {n:5,colors:8,dup:true, tries:12,name:'Moeilijk', text:'5 plekken, 8 kleuren. Een kleur kan meer dan één keer voorkomen.'},
+};
+/* elke kleur heeft ook een eigen vorm, zodat je ze zonder kleur uit elkaar houdt */
+const COLORS=[
+  {c:'#ff7a7a',name:'rood',  d:'M5 2.4a2.6 2.6 0 1 0 0 5.2a2.6 2.6 0 1 0 0-5.2z'},
+  {c:'#6cb6ff',name:'blauw', d:'M5 2 8.3 7.6H1.7z'},
+  {c:'#7bd88f',name:'groen', d:'M2.7 2.7h4.6v4.6H2.7z'},
+  {c:'#ffe066',name:'geel',  d:'M5 1.6l1 2.2 2.4.3-1.8 1.6.5 2.4L5 6.9 2.9 8.1l.5-2.4-1.8-1.6L4 3.8z'},
+  {c:'#b48cff',name:'paars', d:'M5 1.7 8.3 5 5 8.3 1.7 5z'},
+  {c:'#ff9a52',name:'oranje',d:'M4 2h2v2h2v2H6v2H4V6H2V4h2z'},
+  {c:'#4fd1c5',name:'turkoois',d:'M5 2a3 3 0 1 0 0 6a3 3 0 1 0 0-6zM5 3.7a1.3 1.3 0 1 1 0 2.6a1.3 1.3 0 1 1 0-2.6z'},
+  {c:'#e58fd0',name:'roze',  d:'M1.8 3.9h6.4v2.2H1.8z'},
+];
+const pegHTML=k=>`<span class="peg" style="--c:${COLORS[k].c}"><svg viewBox="0 0 10 10" aria-hidden="true"><path fill-rule="evenodd" d="${COLORS[k].d}"/></svg></span>`;
+const bestKey=l=>'codekraker-best-'+l;
+
+let level='normaal'; try{const l=localStorage.getItem('codekraker-level');if(LEVELS[l])level=l}catch(e){}
+let L,code,rows,cur,sel,state='start',t0=0,elapsed=0,timer=null,overTimer=null,best=0,fresh=-1;
+
+function readBest(l){try{return +localStorage.getItem(bestKey(l))||0}catch(e){return 0}}
+const tries=n=>n===1?'1 poging':n+' pogingen';
+function showBest(){$('best').textContent='Record '+(best?tries(best):'–')+' · '+LEVELS[level].name;}
+function setLevel(l){
+  level=l;try{localStorage.setItem('codekraker-level',l)}catch(e){}
+  best=readBest(l);showBest();
+  $('leveltext').textContent=LEVELS[l].text+' Je krijgt '+LEVELS[l].tries+' pogingen.';
+  document.querySelectorAll('[data-level]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.level===l));
+}
+document.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',()=>{setLevel(b.dataset.level);reset();}));
+
+/* geluid: kleine piep, start pas na de eerste tik */
+let ac=null;
+function beep(f,d=0.09,type='triangle',v=0.12){
+  if(window.SITE_SOUND&&!SITE_SOUND.on)return;   // geluid uitgezet
+  try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+d);
+    o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d);}catch(e){}
+}
+
+function makeCode(){
+  const pool=[...Array(L.colors).keys()], out=[];
+  for(let i=0;i<L.n;i++){
+    const j=Math.floor(Math.random()*pool.length);
+    out.push(pool[j]);if(!L.dup)pool.splice(j,1);
+  }
+  return out;
+}
+/* x = juiste kleur op de juiste plek, o = juiste kleur op een andere plek */
+function score(guess,secret){
+  let x=0;const a=Array(COLORS.length).fill(0),b=Array(COLORS.length).fill(0);
+  guess.forEach((g,i)=>{if(g===secret[i])x++;else{a[g]++;b[secret[i]]++;}});
+  let o=0;for(let k=0;k<a.length;k++)o+=Math.min(a[k],b[k]);
+  return {x,o};
+}
+
+/* de grootte van de pinnen volgt uit de ruimte die het veld echt krijgt */
+function fit(){
+  const st=document.querySelector('.stage'), fc=Math.ceil(L.n/2), R=L.tries;
+  const W=st.clientWidth, H=st.clientHeight;
+  const pw=(W-16-(L.n-1)*6-10-(fc-1)*3)/(L.n+fc*.36), ph=(H-(R-1)*4)/R-6;
+  const peg=Math.max(10,Math.floor(Math.min(pw,ph,46)));
+  const root=document.documentElement.style;
+  root.setProperty('--peg',peg+'px');
+  const pal=$('palette'), perRow=pal.clientWidth<300&&getComputedStyle(pal).flexWrap==='wrap'?4:L.colors;
+  root.setProperty('--key',Math.max(26,Math.min(46,Math.floor((pal.parentNode.clientWidth-(perRow-1)*6)/perRow)))+'px');
+}
+addEventListener('resize',()=>{if(L)fit()});
+
+function render(){
+  const fc=Math.ceil(L.n/2);
+  let h='';
+  for(let r=0;r<L.tries;r++){
+    const done=rows[r], isCur=r===rows.length&&(state==='ready'||state==='play');
+    const g=done?done.g:isCur?cur:Array(L.n).fill(null);
+    let label='Poging '+(r+1);
+    if(done)label+=': '+done.g.map(k=>COLORS[k].name).join(', ')+'. '+done.x+' op de juiste plek, '+done.o+' op een andere plek';
+    h+=`<div class="row${isCur?' cur':''}${r===fresh?' new':''}" aria-label="${label}">`;
+    g.forEach((k,i)=>{
+      const inner=k==null?'':pegHTML(k);
+      h+=isCur?`<button class="slot${i===sel?' sel':''}" data-i="${i}" aria-label="Plek ${i+1}${k==null?', leeg':': '+COLORS[k].name}">${inner}</button>`
+              :`<span class="slot">${inner}</span>`;
+    });
+    h+=`<span class="fb" style="--fc:${fc}">`;
+    for(let i=0;i<L.n;i++)h+=`<i class="${done?(i<done.x?'x':i<done.x+done.o?'o':''):''}"></i>`;
+    h+='</span></div>';
+  }
+  $('board').innerHTML=h;
+  $('turn').textContent=Math.min(rows.length+1,L.tries)+'/'+L.tries;
+  $('check').disabled=!(state==='ready'||state==='play')||cur.includes(null);
+  $('del').disabled=!(state==='ready'||state==='play')||cur.every(k=>k==null);
+}
+
+function reset(){
+  clearInterval(timer);clearTimeout(overTimer);timer=null;
+  L=LEVELS[level];code=makeCode();rows=[];cur=Array(L.n).fill(null);sel=0;elapsed=0;state='ready';fresh=-1;
+  $('time').textContent=0;
+  $('palette').innerHTML=[...Array(L.colors).keys()].map(k=>`<button class="key" data-k="${k}" aria-label="${COLORS[k].name}">${pegHTML(k)}</button>`).join('');
+  render();fit();
+}
+
+const playing=()=>state==='ready'||state==='play';
+function nextEmpty(from){
+  for(let d=1;d<=L.n;d++){const i=(from+d)%L.n;if(cur[i]==null)return i;}
+  return from;
+}
+function place(k){
+  if(!playing()||k>=L.colors)return;
+  if(state==='ready'){state='play';t0=performance.now();
+    timer=setInterval(()=>{elapsed=Math.floor((performance.now()-t0)/1000);$('time').textContent=elapsed},250);}
+  cur[sel]=k;sel=nextEmpty(sel);fresh=-1;
+  beep(380+k*40,0.05);render();
+}
+function tapSlot(i){
+  if(!playing())return;
+  cur[i]=null;sel=i;fresh=-1;render();
+}
+function erase(){
+  if(!playing())return;
+  // wis de gekozen plek als daar iets staat, anders de laatste kleur ervoor
+  let i=sel;
+  if(cur[i]==null){i=-1;for(let j=L.n-1;j>=0;j--){const q=(sel-1-(L.n-1-j)+L.n*2)%L.n;if(cur[q]!=null){i=q;break;}}}
+  if(i<0)return;
+  cur[i]=null;sel=i;fresh=-1;render();
+}
+function check(){
+  if(!playing()||cur.includes(null))return;
+  const s=score(cur,code);
+  rows.push({g:cur.slice(),x:s.x,o:s.o});fresh=rows.length-1;
+  cur=Array(L.n).fill(null);sel=0;
+  if(s.x===L.n)return finish(true);
+  if(rows.length===L.tries)return finish(false);
+  beep(300,0.07,'square',0.06);
+  render();
+}
+
+function finish(won){
+  state='over';clearInterval(timer);timer=null;
+  elapsed=Math.max(1,Math.round((performance.now()-t0)/1000));$('time').textContent=elapsed;
+  render();
+  const n=rows.length, rec=won&&(!best||n<best);
+  if(rec){best=n;try{localStorage.setItem(bestKey(level),best)}catch(e){}showBest();}
+  if(won)[523,659,784,1047].forEach((f,k)=>setTimeout(()=>beep(f,0.12),200+k*110));
+  else [330,262,196].forEach((f,k)=>setTimeout(()=>beep(f,0.18,'sawtooth',0.07),200+k*160));
+  $('overtitle').textContent=won?'Code gekraakt!':'Niet gekraakt';
+  $('code').innerHTML=code.map(k=>`<span class="slot">${pegHTML(k)}</span>`).join('');
+  $('code').setAttribute('aria-label','De code: '+code.map(k=>COLORS[k].name).join(', '));
+  $('final').hidden=!won;$('final').textContent=n;
+  $('overmsg').textContent=won?(n===1?'poging':'pogingen')+' · '+elapsed+' s'+(rec?' · nieuw record!':''):'Dit was de code. Probeer het nog eens!';
+  overTimer=setTimeout(()=>{$('over').hidden=false;$('again').focus();},won?900:700);
+}
+
+$('board').addEventListener('click',e=>{const s=e.target.closest('button.slot');if(s)tapSlot(+s.dataset.i);});
+$('palette').addEventListener('click',e=>{const k=e.target.closest('.key');if(k){place(+k.dataset.k);k.blur();}});
+$('del').addEventListener('click',erase);
+$('check').addEventListener('click',check);
+addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey||!$('start').hidden||!$('over').hidden)return;
+  if(/^[1-8]$/.test(e.key))place(+e.key-1);
+  else if(e.key==='Backspace'){e.preventDefault();erase();}
+  else if(e.key==='Enter'&&!e.target.closest('button')){check();}
+  else if(e.key==='ArrowLeft'&&playing()){sel=(sel+L.n-1)%L.n;render();}
+  else if(e.key==='ArrowRight'&&playing()){sel=(sel+1)%L.n;render();}
+});
+
+function start(){$('start').hidden=true;$('over').hidden=true;reset();}
+$('go').addEventListener('click',start);
+$('again').addEventListener('click',start);
+$('restart').addEventListener('click',()=>{$('over').hidden=true;reset();});
+$('change').addEventListener('click',()=>{$('over').hidden=true;$('start').hidden=false;$('go').focus();});
+
+setLevel(level);reset();
+</script>
+
+</body></html>

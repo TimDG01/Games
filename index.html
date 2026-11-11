@@ -18,33 +18,42 @@
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);-webkit-tap-highlight-color:transparent}
 body{min-height:100vh;display:flex;flex-direction:column;
-  padding:calc(env(safe-area-inset-top,0px) + 40px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 24px) max(16px,env(safe-area-inset-left,0px))}
+  padding:calc(env(safe-area-inset-top,0px) + 28px) max(14px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 24px) max(14px,env(safe-area-inset-left,0px))}
 main{width:100%;max-width:960px;margin:0 auto;flex:1}
 
-header{margin-bottom:36px}
-h1{font-family:var(--display);font-weight:400;font-size:clamp(44px,12vw,84px);line-height:.95;margin:0}
+header{margin-bottom:18px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(36px,9vw,64px);line-height:.95;margin:0}
 h1 span{color:var(--accent)}
-.intro{margin:12px 0 0;color:var(--muted);font-size:17px;line-height:1.45;max-width:46ch}
+.intro{margin:8px 0 0;color:var(--muted);font-size:15px;line-height:1.45;max-width:46ch}
 
-.grid{list-style:none;margin:0;padding:0;display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+/* filter op soort game */
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.filters button{font-family:var(--body);font-weight:600;font-size:14px;color:var(--muted);background:transparent;border:2px solid #2f3860;
+  border-radius:99px;padding:6px 14px;cursor:pointer}
+.filters button[aria-pressed="true"]{color:var(--bg-deep);background:var(--accent);border-color:var(--accent)}
+.filters button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+
+/* compacte tegels: drie naast elkaar op een telefoon, meer op een breder scherm */
+.grid{list-style:none;margin:0;padding:0;display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(98px,1fr))}
+.grid li[hidden]{display:none}
 .card{display:flex;flex-direction:column;height:100%;background:var(--panel);border:2px solid transparent;border-radius:6px;
-  color:inherit;text-decoration:none;overflow:hidden;box-shadow:6px 6px 0 var(--bg-deep);transition:transform .12s,box-shadow .12s,border-color .12s}
-.card:hover{border-color:var(--accent);transform:translate(-2px,-2px);box-shadow:8px 8px 0 var(--bg-deep)}
-.card:active{transform:translate(2px,2px);box-shadow:3px 3px 0 var(--bg-deep)}
+  color:inherit;text-decoration:none;overflow:hidden;box-shadow:4px 4px 0 var(--bg-deep);transition:transform .12s,box-shadow .12s,border-color .12s}
+.card:hover{border-color:var(--accent);transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--bg-deep)}
+.card:active{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--bg-deep)}
 .card:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
-.thumb{aspect-ratio:16/9;display:block;width:100%}
-.body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:8px;flex:1}
-.card h2{font-family:var(--display);font-weight:400;font-size:22px;line-height:1.1;margin:0}
-.card p{margin:0;color:var(--muted);font-size:15px;line-height:1.45}
-.meta{margin-top:auto;padding-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;
-  letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.play{font-family:var(--display);letter-spacing:0;font-size:15px;color:var(--bg-deep);background:var(--accent);border-radius:4px;
-  padding:6px 12px;box-shadow:0 3px 0 var(--accent-deep)}
+.thumb{aspect-ratio:16/10;display:block;width:100%}
+.body{padding:7px 8px 9px;display:flex;flex-direction:column;gap:2px;flex:1}
+.card h2{font-family:var(--body);font-weight:600;font-size:14px;line-height:1.15;margin:0;overflow-wrap:anywhere}
+.tag{font-size:11px;line-height:1.25;color:var(--muted)}
 .best{color:var(--accent)}
+@media (min-width:600px){
+  .grid{gap:16px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .body{padding:10px 12px 12px;gap:3px}
+  .card h2{font-size:16px}
+  .tag{font-size:12px}
+}
 
-footer{max-width:960px;width:100%;margin:40px auto 0;color:var(--muted);font-size:13px;letter-spacing:.08em}
-.soon{border:2px dashed #2f3860;border-radius:6px;display:grid;place-items:center;min-height:200px;padding:24px;text-align:center;
-  color:var(--muted);font-size:15px}
+footer{max-width:960px;width:100%;margin:32px auto 0;color:var(--muted);font-size:13px;letter-spacing:.08em}
 
 </style>
 </head>
@@ -55,17 +64,19 @@ footer{max-width:960px;width:100%;margin:40px auto 0;color:var(--muted);font-siz
     <p class="intro">Kleine spelletjes voor tussendoor. Werken op je telefoon en op de computer, zonder installatie.</p>
   </header>
 
+  <div class="filters" id="filters" role="group" aria-label="Soort game"></div>
   <ul class="grid" id="games"></ul>
 </main>
-<footer>Versie <span id="version"></span></footer>
+<footer>Binnenkort meer games · Versie <span id="version"></span></footer>
 
-<script src="version.js?v=7.7"></script>
+<script src="version.js?v=7.8"></script>
 <script>
 document.getElementById('version').textContent = SITE_VERSION;
 /*
   Een nieuwe game toevoegen:
   1. Zet de game in games/<naam>/index.html
   2. Voeg hieronder een regel toe aan GAMES.
+     - tag: de soort game; daar komt vanzelf een filterknop voor
      - bestKey (optioneel): localStorage-sleutel waar de game het record bewaart
      - thumb: SVG-inhoud voor een viewBox van 160×90
 */
@@ -74,7 +85,7 @@ const GAMES = [
     title: 'Toren Stapelaar',
     href: 'games/toren-stapelaar/',
     description: 'Laat schuivende blokken op elkaar vallen. Wat over de rand hangt, valt eraf. Hoe hoog kom jij?',
-    tag: 'Behendigheid',
+    tag: 'Arcade',
     bestKey: 'stapel-best',
     bestLabel: n => n === 1 ? '1 verdieping' : n + ' verdiepingen',
     thumb: `
@@ -165,7 +176,7 @@ const GAMES = [
     title: 'Memory',
     href: 'games/memory/',
     description: 'Draai kaarten om en zoek de paren. Hoe minder beurten, hoe beter. Drie moeilijkheden.',
-    tag: 'Geheugen',
+    tag: 'Puzzel',
     bestKey: 'memory-best-makkelijk',
     bestLabel: n => n + ' beurten (makkelijk)',
     thumb: `
@@ -385,6 +396,20 @@ const GAMES = [
         <g fill="#141a2e" stroke="#4b557a" stroke-width="1.8"><rect x="57" y="4" width="10" height="8" rx="2"/><rect x="3" y="40" width="10" height="8" rx="2"/></g>
       </g>`
   },
+  {
+    title: 'Codekraker',
+    href: 'games/codekraker/',
+    description: 'De computer verstopt een kleurcode. Raad ze in zo weinig mogelijk pogingen, met na elke poging een aanwijzing. Drie moeilijkheden.',
+    tag: 'Puzzel',
+    bestKey: 'codekraker-best-normaal',
+    bestLabel: n => (n === 1 ? '1 poging' : n + ' pogingen') + ' (normaal)',
+    thumb: `
+      <rect width="160" height="90" fill="#10162a"/>
+      ${[['#ff7a7a','#6cb6ff','#ffe066','#7bd88f','ow  '],['#b48cff','#ffe066','#ff7a7a','#ff9a52','xo  '],['#ffe066','#ff9a52','#6cb6ff','#ff7a7a','xxo '],['#ff9a52','#ffe066','#b48cff','#ff7a7a','xxxx']]
+        .map((r, y) => `<rect x="38" y="${7 + y * 20}" width="86" height="17" rx="8.5" fill="${y === 3 ? '#222a49' : '#191f37'}"/>` +
+          r.slice(0, 4).map((c, x) => `<circle cx="${48 + x * 16}" cy="${15.5 + y * 20}" r="6" fill="${c}"/>`).join('') +
+          [...r[4]].map((f, i) => `<circle cx="${109 + (i % 2) * 7}" cy="${12 + Math.floor(i / 2) * 7 + y * 20}" r="2.4" fill="${f === 'x' ? '#7bd88f' : f === ' ' ? '#0b0f1d' : '#f4f0e6'}"/>`).join('')).join('')}`
+  },
 ];
 
 function readBest(key){
@@ -395,20 +420,17 @@ const list = document.getElementById('games');
 for (const g of GAMES) {
   const best = g.bestKey ? readBest(g.bestKey) : 0;
   const li = document.createElement('li');
+  li.dataset.tag = g.tag || '';
   li.innerHTML = `
     <a class="card" href="${g.href}?v=${SITE_VERSION}">
       <svg class="thumb" viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${g.thumb}</svg>
       <div class="body">
         <h2></h2>
-        <p></p>
-        <div class="meta">
-          <span class="tag"></span>
-          <span class="play">Speel</span>
-        </div>
+        <span class="tag"></span>
       </div>
     </a>`;
+  li.querySelector('a').title = g.description;
   li.querySelector('h2').textContent = g.title;
-  li.querySelector('p').textContent = g.description;
   const tag = li.querySelector('.tag');
   if (best > 0) {
     tag.classList.add('best');
@@ -419,9 +441,25 @@ for (const g of GAMES) {
   list.appendChild(li);
 }
 
-const soon = document.createElement('li');
-soon.innerHTML = '<div class="soon">Binnenkort meer games</div>';
-list.appendChild(soon);
+// filterknoppen: Alles, en dan elke soort (de meest voorkomende eerst). De keuze blijft bewaard.
+const count = {};
+for (const g of GAMES) if (g.tag) count[g.tag] = (count[g.tag] || 0) + 1;
+const tags = Object.keys(count).sort((a, b) => count[b] - count[a]);
+const filters = document.getElementById('filters');
+function show(tag) {
+  if (tag && !count[tag]) tag = '';
+  for (const li of list.children) li.hidden = !!tag && li.dataset.tag !== tag;
+  for (const b of filters.children) b.setAttribute('aria-pressed', b.dataset.tag === tag);
+  try { localStorage.setItem('games-filter', tag) } catch(e) {}
+}
+for (const t of ['', ...tags]) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.dataset.tag = t; b.textContent = t || 'Alles';
+  b.addEventListener('click', () => show(t));
+  filters.appendChild(b);
+}
+let saved = ''; try { saved = localStorage.getItem('games-filter') || '' } catch(e) {}
+show(saved);
 </script>
 </body>
 </html>

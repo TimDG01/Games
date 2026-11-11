@@ -12,7 +12,7 @@ games/<naam>/index.html        één map per game
 ## Een game toevoegen
 
 1. Zet de game in `games/<naam>/index.html`. Een link `../../` (class `home`) brengt je terug naar het overzicht; geef die `position:relative;z-index:5` zodat hij boven de pop-ups blijft.
-2. Voeg een regel toe aan de lijst `GAMES` in `index.html` (titel, link, beschrijving, thumbnail, optioneel de `localStorage`-sleutel van het record).
+2. Voeg een regel toe aan de lijst `GAMES` in `index.html` (titel, link, beschrijving, soort, thumbnail, optioneel de `localStorage`-sleutel van het record). Voor elke soort (`tag`) staat er vanzelf een filterknop boven de tegels.
 
 ## Versie
 
