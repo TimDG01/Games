@@ -37,7 +37,7 @@ button.slot{background:none;padding:0;cursor:pointer}
 .card.red .in{color:#d2403f}
 .card.drag .in{box-shadow:0 0 0 1px rgba(11,15,29,.6), 0 8px 14px rgba(0,0,0,.45)}
 .rk{position:absolute;left:7%;top:4%;font-weight:600;font-size:calc(var(--cw) * .4);line-height:1;letter-spacing:-.06em}
-.in svg{position:absolute;fill:currentColor}
+.in svg{position:absolute;fill:currentColor;pointer-events:none}
 .sm{right:6%;top:5%;width:30%;height:auto;aspect-ratio:1}
 .lg{left:21%;bottom:7%;width:58%;height:auto;aspect-ratio:1}
 .card.down .in{background:#2f3a6b;box-shadow:0 0 0 1px rgba(11,15,29,.6), inset 0 0 0 calc(var(--cw) * .07) #f4f0e6, inset 0 0 0 calc(var(--cw) * .11) #2f3a6b,
@@ -114,7 +114,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   <div class="overlay" id="start">
     <div class="panel">
       <h1>Patience</h1>
-      <p class="intro">Leg alle kaarten per soort op de vier stapels linksboven, van aas tot koning. Op het veld leg je kaarten aflopend en om en om rood en zwart. Tik op een kaart om ze te verleggen, of sleep ze.</p>
+      <p class="intro">Leg alle kaarten per soort op de vier stapels linksboven, van aas tot koning. Op het veld leg je kaarten aflopend en om en om rood en zwart. Tik of dubbeltik op een kaart en ze gaat naar een eindstapel als dat kan, anders naar een passende kolom. Slepen kan ook.</p>
       <div class="levels" role="group" aria-label="Kaarten per keer omdraaien">
         <button data-draw="1">1 kaart</button>
         <button data-draw="3">3 kaarten</button>
@@ -136,7 +136,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=8.1"></script>
+<script src="../../version.js?v=8.2"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -284,9 +284,9 @@ function drawStock(quiet){
 
 /* tikken: de kaart gaat naar de beste plek. Eerst een eindstapel, dan een kolom met kaarten, dan een lege kolom. */
 function tapMove(l){
-  const seq=seqOf(l);if(!seq.length)return;
+  const seq=seqOf(l);if(!seq.length||l.p==='f')return;   // van een eindstapel haal je een kaart alleen door te slepen
   const c=seq[0];
-  if(seq.length===1&&l.p!=='f'){const k=whichFound(c);if(k>=0)return moveTo(l,'f',k);}
+  if(seq.length===1){const k=whichFound(c);if(k>=0)return moveTo(l,'f',k);}
   let full=-1,empty=-1;
   for(let j=0;j<7;j++){
     if(l.p==='t'&&j===l.k||!fitsTab(c,j))continue;
@@ -331,10 +331,22 @@ function undo(){
   layout();save();beep(330,0.04);
 }
 
+/* Dubbel tikken doet hetzelfde als één tik: de eerste tik verlegt de kaart al (naar een eindstapel als dat kan).
+   De tweede tik van een dubbeltik valt op dezelfde plek en zou anders de kaart eronder verleggen, dus die slaan we over. */
+let lastTap={t:0,x:0,y:0};
+function tap(l,x,y){
+  const now=performance.now(), dbl=x!=null&&now-lastTap.t<450&&Math.hypot(x-lastTap.x,y-lastTap.y)<cw*.8;
+  if(dbl){lastTap.t=0;return;}
+  const m=moves;tapMove(l);
+  if(moves!==m&&x!=null)lastTap={t:now,x,y};
+}
+
 /* slepen: vanaf een paar pixels beweging gaan de kaarten mee; bij loslaten telt de plek van de bovenste kaart */
 let dg=null;
 const board=$('board');
+let px=0,py=0;   // waar de laatste aanraking begon; een doorgestuurde tik kent zijn eigen plek niet
 board.addEventListener('pointerdown',e=>{
+  px=e.clientX;py=e.clientY;
   if(state!=='play'||e.button>0||dg)return;
   const el=e.target.closest('.card');if(!el)return;
   const l=loc[+el.dataset.c], seq=seqOf(l);
@@ -361,6 +373,8 @@ function drop(e){
     if(cy<ch+gy/2){
       if(col<4&&d.seq.length===1&&!(d.l.p==='f'&&d.l.k===col)&&fitsFound(c,col))return moveTo(d.l,'f',col);
     }else if(!(d.l.p==='t'&&d.l.k===col)&&fitsTab(c,col))return moveTo(d.l,'t',col);
+    // nauwelijks verschoven en op zijn eigen plek losgelaten: dat was een tik met een bewegende vinger
+    if(Math.hypot(e.clientX-d.x,e.clientY-d.y)<cw*.6){layout();return tap(d.l,e.clientX,e.clientY);}
   }
   layout();
 }
@@ -371,7 +385,7 @@ board.addEventListener('click',e=>{
   if(e.target.closest('#stockslot'))return drawStock();
   const el=e.target.closest('.card');if(!el)return;
   const l=loc[+el.dataset.c];
-  if(l.p==='s')drawStock();else tapMove(l);
+  if(l.p==='s')drawStock();else tap(l,px,py);
 });
 $('undo').addEventListener('click',undo);
 addEventListener('keydown',e=>{

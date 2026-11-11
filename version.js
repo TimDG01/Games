@@ -1,5 +1,5 @@
 // Versie van de site. Verhoog met tools/bump-version.sh, dat ook de verwijzingen in alle pagina's bijwerkt.
-const SITE_VERSION = '8.1';
+const SITE_VERSION = '8.2';
 
 // Staat er online al een nieuwere versie? Dan meteen de verse pagina laden, één keer per versie.
 (function(){
@@ -30,6 +30,8 @@ const SITE_VERSION = '8.1';
       (inGame?'*{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}':'');
     document.head.prepend(st);
     let lastTap=0, start=null;
+    // niet elk element kent click() (een svg bijvoorbeeld niet); dan sturen we de klik als gebeurtenis
+    const click=el=>el.click?el.click():el.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));
     const isTap=(t,e)=>Math.hypot(t.clientX-start.x,t.clientY-start.y)<12&&e.timeStamp-start.time<(inGame?1500:500);
     if(inGame){
       const native=el=>el.closest&&el.closest('input,select,textarea,label');
@@ -41,7 +43,7 @@ const SITE_VERSION = '8.1';
       document.addEventListener('touchend',e=>{
         if(!start||e.touches.length)return;
         const t=e.changedTouches[0], el=start.el;
-        if(isTap(t,e)&&el.isConnected)el.click();
+        if(isTap(t,e)&&el.isConnected)click(el);
         start=null;
       },{passive:false});
       document.addEventListener('touchcancel',()=>{start=null;});
@@ -61,7 +63,7 @@ const SITE_VERSION = '8.1';
       if(e.timeStamp-lastTap<350&&e.cancelable){
         e.preventDefault();
         const el=document.elementFromPoint(t.clientX,t.clientY);
-        if(el)el.click();
+        if(el)click(el);
       }
       lastTap=e.timeStamp;start=null;
     },{passive:false});
