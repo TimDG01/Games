@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Vier op een Rij</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;600&display=swap">
+<style>
+/* Layout: stand bovenaan, het rek in het midden, panelen erover */
+:root{
+  --bg:#141a2e; --bg-deep:#0b0f1d; --fg:#f4f0e6; --muted:#9097b5; --accent:#ffb347; --panel:#1d2440;
+  --p1:#ffe066; --p2:#ff7a7a;
+  --display:'Bungee', Impact, 'Arial Black', sans-serif;
+  --body:'Outfit', system-ui, -apple-system, sans-serif;
+  --cell:44px; --gap:6px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg);margin:0;overflow:hidden;font-family:var(--body);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+  padding:calc(env(safe-area-inset-top,0px) + 12px) max(12px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 14px) max(12px,env(safe-area-inset-left,0px))}
+.top{width:100%;max-width:520px;height:44px;flex:none;display:grid;grid-template-columns:40px 1fr 1fr 1fr 40px 40px;align-items:center;gap:6px}
+.stat{text-align:center;line-height:1}
+.stat b{display:block;font-family:var(--display);font-weight:400;font-size:26px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
+#s1 b{color:var(--p1)} #s2 b{color:var(--p2)}
+#best{flex:none;margin-top:8px;font-size:13px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;text-align:center}
+.stage{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:0}
+#msg{flex:none;font-family:var(--display);font-size:20px;height:24px;line-height:24px;text-align:center;white-space:nowrap}
+#msg.p1{color:var(--p1)} #msg.p2{color:var(--p2)}
+#board{flex:none;position:relative;display:grid;grid-template-columns:repeat(7,var(--cell));gap:var(--gap);padding:var(--gap);
+  background:#2a3358;border-radius:calc(var(--cell) * .28);box-shadow:inset 0 -5px 0 #1d2440, inset 0 2px 0 #36406a;overflow:hidden}
+.cell{width:var(--cell);height:var(--cell);border-radius:50%;background:#10162a;box-shadow:inset 0 3px 0 #0b0f1d}
+.disc{width:100%;height:100%;border-radius:50%;background:var(--p1);
+  box-shadow:inset 0 calc(var(--cell) * -.09) 0 rgba(11,15,29,.25), inset 0 0 0 calc(var(--cell) * .14) rgba(255,255,255,.14);
+  animation:drop calc(.07s * var(--r) + .16s) cubic-bezier(.45,0,.9,.55) backwards}
+.disc.p2{background:var(--p2)}
+@keyframes drop{from{transform:translateY(calc((var(--r) + 1) * -1 * (var(--cell) + var(--gap))))}}
+.disc.win{box-shadow:0 0 0 calc(var(--cell) * .09) var(--fg) inset;animation:pulse .7s ease-in-out 3}
+.dim .disc:not(.win){opacity:.35}
+@keyframes pulse{50%{transform:scale(.86)}}
+/* over elke kolom ligt een onzichtbare knop */
+.cols{position:absolute;inset:0;display:grid;grid-template-columns:repeat(7,1fr)}
+.cols button{border:0;padding:0;background:transparent;cursor:pointer}
+.cols button:disabled{cursor:default}
+@media (hover:hover){.cols button:not(:disabled):hover{background:rgba(244,240,230,.07)}}
+.cols button:focus-visible{outline:3px solid var(--fg);outline-offset:-3px}
+#next{flex:none;font-family:var(--display);font-size:18px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
+  padding:10px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14;visibility:hidden}
+#next.show{visibility:visible}
+#next:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
+.home{width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
+.home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.restart{width:40px;height:40px;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);border:0;font-size:20px;cursor:pointer;padding:0}
+/* de terugknop blijft boven de pop-ups, zodat je altijd naar het overzicht kunt */
+.home{position:relative;z-index:5}
+.overlay{position:fixed;inset:0;display:grid;place-items:center;padding-inline:16px;background:rgba(11,15,29,.62)}
+.overlay[hidden]{display:none}
+.panel{background:var(--panel);border:2px solid var(--accent);border-radius:6px;padding:28px 24px;max-width:320px;width:100%;text-align:center;
+  display:flex;flex-direction:column;gap:14px;box-shadow:8px 8px 0 var(--bg-deep)}
+.panel h1{font-family:var(--display);font-weight:400;font-size:28px;line-height:1.05;margin:0;text-wrap:balance}
+.panel p{margin:0;color:var(--muted);font-size:16px;line-height:1.45}
+.ver{font-size:12px;color:var(--muted);letter-spacing:.08em}
+.panel > button{font-family:var(--display);font-size:20px;color:var(--bg-deep);background:var(--accent);border:0;border-radius:4px;
+  padding:14px 18px;cursor:pointer;box-shadow:0 5px 0 #b86e14}
+.panel > button:active{transform:translateY(4px);box-shadow:0 1px 0 #b86e14}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+.levels{display:flex;gap:6px}
+.levels button{flex:1;font-family:var(--display);font-size:13px;padding:10px 2px;color:var(--fg);background:transparent;border:2px solid #2f3860;border-radius:4px;cursor:pointer}
+.levels button[aria-pressed="true"]{color:var(--bg-deep);background:var(--accent);border-color:var(--accent)}
+.levels[hidden]{display:none}
+/* laag scherm (telefoon op zijn kant): minder lucht, compacter paneel */
+@media (max-height:520px){
+  #best{display:none}
+  .stage{gap:6px}
+  #msg{font-size:16px;height:20px;line-height:20px}
+  #next{font-size:15px;padding:7px 14px;box-shadow:0 4px 0 #b86e14}
+  .panel{padding:14px 18px;gap:8px;max-width:440px}
+  .panel h1{font-size:22px}
+  .panel p{font-size:14px;line-height:1.3}
+  .panel > button{padding:10px 18px;font-size:18px}
+}
+</style>
+</head><body>
+
+<div id="wrap">
+  <div class="top">
+    <a class="home" href="../../" aria-label="Terug naar alle games">&larr;</a>
+    <div class="stat" id="s1"><b id="sc1">0</b><span id="n1">Jij</span></div>
+    <div class="stat"><b id="scd">0</b><span>Gelijk</span></div>
+    <div class="stat" id="s2"><b id="sc2">0</b><span id="n2">Computer</span></div>
+    <button class="sndbtn" aria-label="Geluid aan of uit"></button>
+    <button class="restart" id="restart" aria-label="Andere spelvorm kiezen">&#8635;</button>
+  </div>
+  <div id="best">Record –</div>
+  <div class="stage">
+    <div id="msg" aria-live="polite"></div>
+    <div id="board" aria-label="Speelveld"></div>
+    <button id="next">Nog een ronde</button>
+  </div>
+
+  <div class="overlay" id="start">
+    <div class="panel">
+      <h1>Vier op een Rij</h1>
+      <p>Laat om de beurt een schijf in een kolom vallen. Wie het eerst vier op een rij heeft, wint: horizontaal, verticaal of schuin.</p>
+      <div class="levels" role="group" aria-label="Tegenstander">
+        <button data-mode="cpu">Computer</button>
+        <button data-mode="duo">Met z'n 2en</button>
+      </div>
+      <div class="levels" id="levels" role="group" aria-label="Moeilijkheid">
+        <button data-level="makkelijk">Makkelijk</button>
+        <button data-level="normaal">Normaal</button>
+        <button data-level="moeilijk">Moeilijk</button>
+      </div>
+      <button id="go">Start</button>
+      <div class="ver">Versie <span id="ver"></span></div>
+    </div>
+  </div>
+</div>
+
+<script src="../../version.js?v=7.9"></script>
+<script>
+const $=id=>document.getElementById(id);
+try{$('ver').textContent=SITE_VERSION}catch(e){}
+
+/* het rek: 7 kolommen, 6 rijen; vakje i = rij × 7 + kolom, rij 0 is bovenaan. 1 = geel (jij), 2 = rood (computer) */
+const C=7,R=6;
+const WINS=[];                       // alle rijtjes van vier
+const AT=[...Array(C*R)].map(()=>[]); // per vakje: de rijtjes waar het in zit
+for(let r=0;r<R;r++)for(let c=0;c<C;c++)for(const [dr,dc] of [[0,1],[1,0],[1,1],[1,-1]]){
+  const er=r+dr*3, ec=c+dc*3;
+  if(er>=R||ec<0||ec>=C)continue;
+  const w=[0,1,2,3].map(k=>(r+dr*k)*C+c+dc*k);
+  w.forEach(i=>AT[i].push(WINS.length));WINS.push(w);
+}
+const LEVELS={makkelijk:'Makkelijk',normaal:'Normaal',moeilijk:'Moeilijk'};
+// record: zoveel keer op rij van de computer gewonnen, per moeilijkheid
+const bestKey=l=>'vier-best-'+l;
+
+let mode='cpu', level='normaal';
+try{const m=localStorage.getItem('vier-mode');if(m==='cpu'||m==='duo')mode=m;
+    const l=localStorage.getItem('vier-level');if(LEVELS[l])level=l;}catch(e){}
+let b=new Int8Array(C*R),h=new Int8Array(C),moves=0,turn=1,starter=1,state='start',score={1:0,2:0,D:0},streak=0,best=0,cpuTimer=null;
+let cells=[],cols=[];
+
+function readBest(l){try{return +localStorage.getItem(bestKey(l))||0}catch(e){return 0}}
+function showBest(){
+  $('best').textContent=mode==='duo'?'Met z\'n tweeën':'Record '+(best?best+' op rij':'–')+' · '+LEVELS[level];
+}
+function setMode(m){
+  mode=m;try{localStorage.setItem('vier-mode',m)}catch(e){}
+  document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.mode===m));
+  $('levels').hidden=m!=='cpu';
+  $('n1').textContent=m==='cpu'?'Jij':'Geel';$('n2').textContent=m==='cpu'?'Computer':'Rood';
+  showBest();
+}
+function setLevel(l){
+  level=l;try{localStorage.setItem('vier-level',l)}catch(e){}
+  best=readBest(l);
+  document.querySelectorAll('[data-level]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.level===l));
+  showBest();
+}
+document.querySelectorAll('[data-mode]').forEach(x=>x.addEventListener('click',()=>setMode(x.dataset.mode)));
+document.querySelectorAll('[data-level]').forEach(x=>x.addEventListener('click',()=>setLevel(x.dataset.level)));
+
+/* geluid: kleine piep, start pas na de eerste tik */
+let ac=null;
+function beep(f,d=0.09,type='triangle',v=0.12){
+  if(window.SITE_SOUND&&!SITE_SOUND.on)return;   // geluid uitgezet
+  try{ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+d);
+    o.connect(g).connect(ac.destination);o.start();o.stop(ac.currentTime+d);}catch(e){}
+}
+
+/* de grootte van de vakjes volgt uit de ruimte die het rek echt krijgt */
+function fit(){
+  const st=document.querySelector('.stage'), sg=parseFloat(getComputedStyle(st).rowGap)||0;
+  const W=Math.min(st.clientWidth,560), H=st.clientHeight-$('msg').offsetHeight-$('next').offsetHeight-2*sg-6;
+  const gap=W<340?4:6;
+  const cell=Math.floor(Math.min((W-gap*(C+1))/C,(H-gap*(R+1))/R,84));
+  const s=document.documentElement.style;
+  s.setProperty('--gap',gap+'px');s.setProperty('--cell',Math.max(16,cell)+'px');
+}
+addEventListener('resize',fit);
+
+function buildBoard(){
+  const el=$('board');el.innerHTML='';cells=[];cols=[];
+  for(let i=0;i<C*R;i++){const d=document.createElement('div');d.className='cell';el.appendChild(d);cells.push(d);}
+  const cw=document.createElement('div');cw.className='cols';
+  for(let c=0;c<C;c++){
+    const x=document.createElement('button');x.type='button';x.dataset.c=c;x.setAttribute('aria-label','Kolom '+(c+1));
+    cw.appendChild(x);cols.push(x);
+  }
+  el.appendChild(cw);
+  fit();
+}
+
+function wonAt(i){ // het rijtje van vier door vakje i, als dat er is
+  const p=b[i];
+  for(const k of AT[i]){const w=WINS[k];if(b[w[0]]===p&&b[w[1]]===p&&b[w[2]]===p&&b[w[3]]===p)return w;}
+  return null;
+}
+const put=(c,p)=>{const i=(R-1-h[c])*C+c;b[i]=p;h[c]++;moves++;return i;};
+const take=c=>{h[c]--;moves--;b[(R-1-h[c])*C+c]=0;};
+
+/* de computer is rood (2). Hij kijkt een aantal zetten vooruit en schat de stand daarna in. */
+const ORDER=[3,2,4,1,5,0,6], VAL=[0,1,8,40];
+function evaluate(){
+  let s=0;
+  for(let k=0;k<WINS.length;k++){
+    const w=WINS[k];let a=0,d=0;
+    for(let j=0;j<4;j++){const v=b[w[j]];if(v===2)a++;else if(v===1)d++;}
+    if(a&&!d)s+=VAL[a];else if(d&&!a)s-=VAL[d];
+  }
+  for(let r=0;r<R;r++){const v=b[r*C+3];if(v===2)s+=3;else if(v===1)s-=3;}
+  return s;
+}
+function search(depth,alpha,beta,p,last){
+  if(wonAt(last))return (b[last]===2?1:-1)*(100000+depth);
+  if(moves===C*R)return 0;
+  if(depth===0)return evaluate();
+  if(p===2){
+    let v=-Infinity;
+    for(const c of ORDER)if(h[c]<R){
+      const i=put(c,2);v=Math.max(v,search(depth-1,alpha,beta,1,i));take(c);
+      if(v>alpha)alpha=v;if(alpha>=beta)break;
+    }
+    return v;
+  }
+  let v=Infinity;
+  for(const c of ORDER)if(h[c]<R){
+    const i=put(c,1);v=Math.min(v,search(depth-1,alpha,beta,2,i));take(c);
+    if(v<beta)beta=v;if(alpha>=beta)break;
+  }
+  return v;
+}
+function winningCol(p){ // een kolom waarmee p meteen vier op een rij heeft
+  for(const c of ORDER)if(h[c]<R){const i=put(c,p);const w=wonAt(i);take(c);if(w)return c;}
+  return -1;
+}
+function cpuMove(){
+  const free=ORDER.filter(c=>h[c]<R), any=()=>free[Math.floor(Math.random()*free.length)];
+  if(level==='makkelijk'){
+    // ziet zijn eigen winst meestal, jouw dreiging maar af en toe
+    const w=winningCol(2);if(w>=0&&Math.random()<0.75)return w;
+    const blk=winningCol(1);if(blk>=0&&Math.random()<0.5)return blk;
+    return any();
+  }
+  const depth=level==='moeilijk'?8:3;
+  let top=-Infinity,pick=[];
+  for(const c of free){
+    const i=put(c,2);const v=search(depth-1,-Infinity,Infinity,1,i);take(c);
+    if(v>top){top=v;pick=[c];}else if(v===top)pick.push(c);
+  }
+  return pick[Math.floor(Math.random()*pick.length)];
+}
+
+const NAME=p=>mode==='cpu'?(p===1?'Jij':'Computer'):(p===1?'Geel':'Rood');
+function showTurn(){
+  const el=$('msg');el.className='p'+turn;
+  el.textContent=mode==='cpu'?(turn===1?'Jouw beurt':'Computer denkt…'):NAME(turn)+' is aan de beurt';
+  const mine=state==='play'&&!(mode==='cpu'&&turn===2);
+  cols.forEach((x,c)=>x.disabled=!mine||h[c]>=R);
+}
+
+function newRound(){
+  clearTimeout(cpuTimer);
+  b.fill(0);h.fill(0);moves=0;turn=starter;state='play';
+  for(const c of cells)c.innerHTML='';
+  $('board').classList.remove('dim');
+  $('next').classList.remove('show');
+  showTurn();
+  if(mode==='cpu'&&turn===2)cpuTimer=setTimeout(doCpu,600);
+}
+
+function play(c){
+  if(h[c]>=R)return;
+  const i=put(c,turn), r=Math.floor(i/C);
+  cells[i].innerHTML=`<div class="disc p${turn}" style="--r:${r}"></div>`;
+  beep(turn===1?520:390,0.07);
+  const w=wonAt(i);
+  if(w||moves===C*R)return endRound(w);
+  turn=3-turn;showTurn();
+  if(mode==='cpu'&&turn===2)cpuTimer=setTimeout(doCpu,420);
+}
+function doCpu(){if(state==='play')play(cpuMove());}
+
+function endRound(w){
+  state='over';
+  cols.forEach(x=>x.disabled=true);
+  const el=$('msg');
+  if(w){
+    const who=b[w[0]];
+    setTimeout(()=>{w.forEach(i=>cells[i].firstChild&&cells[i].firstChild.classList.add('win'));$('board').classList.add('dim');},350);
+    score[who]++;el.className='p'+who;
+    if(mode==='cpu'){
+      if(who===1){
+        el.textContent='Je wint!';streak++;
+        if(streak>best){best=streak;try{localStorage.setItem(bestKey(level),best)}catch(e){}showBest();}
+        [523,659,784,1047].forEach((f,k)=>setTimeout(()=>beep(f,0.12),300+k*110));
+      }else{el.textContent='De computer wint';streak=0;[392,330,262].forEach((f,k)=>setTimeout(()=>beep(f,0.14),300+k*130));}
+    }else{
+      el.textContent=NAME(who)+' wint!';
+      [523,659,784,1047].forEach((f,k)=>setTimeout(()=>beep(f,0.12),300+k*110));
+    }
+  }else{
+    score.D++;el.className='';el.textContent='Gelijkspel';
+    [440,440].forEach((f,k)=>setTimeout(()=>beep(f,0.1),300+k*150));
+  }
+  $('sc1').textContent=score[1];$('sc2').textContent=score[2];$('scd').textContent=score.D;
+  starter=3-starter;   // om de beurt beginnen
+  setTimeout(()=>{$('next').classList.add('show');$('next').focus();},800);
+}
+
+$('board').addEventListener('click',e=>{
+  const x=e.target.closest('.cols button');if(!x||x.disabled)return;
+  if(state!=='play'||(mode==='cpu'&&turn!==1))return;
+  x.blur();play(+x.dataset.c);
+});
+addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey||!$('start').hidden||!/^[1-7]$/.test(e.key))return;
+  if(state!=='play'||(mode==='cpu'&&turn!==1))return;
+  play(+e.key-1);
+});
+$('next').addEventListener('click',newRound);
+
+function start(){
+  $('start').hidden=true;
+  score={1:0,2:0,D:0};streak=0;starter=1;
+  $('sc1').textContent=0;$('sc2').textContent=0;$('scd').textContent=0;
+  newRound();fit();
+}
+$('go').addEventListener('click',start);
+$('restart').addEventListener('click',()=>{clearTimeout(cpuTimer);state='start';cols.forEach(x=>x.disabled=true);$('start').hidden=false;$('go').focus();});
+
+setMode(mode);setLevel(level);buildBoard();cols.forEach(x=>x.disabled=true);
+</script>
+
+</body></html>

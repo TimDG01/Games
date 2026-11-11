@@ -69,7 +69,7 @@ footer{max-width:960px;width:100%;margin:32px auto 0;color:var(--muted);font-siz
 </main>
 <footer>Binnenkort meer games · Versie <span id="version"></span></footer>
 
-<script src="version.js?v=7.8"></script>
+<script src="version.js?v=7.9"></script>
 <script>
 document.getElementById('version').textContent = SITE_VERSION;
 /*
@@ -409,6 +409,37 @@ const GAMES = [
         .map((r, y) => `<rect x="38" y="${7 + y * 20}" width="86" height="17" rx="8.5" fill="${y === 3 ? '#222a49' : '#191f37'}"/>` +
           r.slice(0, 4).map((c, x) => `<circle cx="${48 + x * 16}" cy="${15.5 + y * 20}" r="6" fill="${c}"/>`).join('') +
           [...r[4]].map((f, i) => `<circle cx="${109 + (i % 2) * 7}" cy="${12 + Math.floor(i / 2) * 7 + y * 20}" r="2.4" fill="${f === 'x' ? '#7bd88f' : f === ' ' ? '#0b0f1d' : '#f4f0e6'}"/>`).join('')).join('')}`
+  },
+  {
+    title: 'Vier op een Rij',
+    href: 'games/vier-op-een-rij/',
+    description: 'Laat om de beurt een schijf in het rek vallen en maak als eerste vier op een rij. Tegen de computer op drie niveaus, of met z\'n tweeën.',
+    tag: 'Klassieker',
+    bestKey: 'vier-best-normaal',
+    bestLabel: n => n + ' op rij gewonnen',
+    thumb: `
+      <rect width="160" height="90" fill="#10162a"/>
+      <rect x="33" y="5" width="94" height="81" rx="7" fill="#2a3358"/>
+      ${['.......', '.......', '...r...', '..ryy..', '.ryrr..', 'yyrry.r'].map((row, r) => [...row].map((v, c) =>
+        `<circle cx="${42 + c * 12.7}" cy="${13.5 + r * 12.8}" r="5" fill="${v === 'y' ? '#ffe066' : v === 'r' ? '#ff7a7a' : '#10162a'}"/>`).join('')).join('')}
+      <path d="M54.7 64.7 92.8 26.3" stroke="#f4f0e6" stroke-width="2.5" stroke-linecap="round" opacity=".85"/>`
+  },
+  {
+    title: 'Zeeslag',
+    href: 'games/zeeslag/',
+    description: 'Verstop je vloot en zoek die van de computer. Schiet om de beurt, en breng als eerste alle schepen van de ander tot zinken.',
+    tag: 'Klassieker',
+    bestKey: 'zeeslag-best-normaal',
+    bestLabel: n => n + ' schoten (normaal)',
+    thumb: `
+      <rect width="160" height="90" fill="#10162a"/>
+      <g transform="translate(45 10)">
+        <rect x="-3" y="-3" width="76" height="76" rx="4" fill="#0b0f1d"/>
+        ${['......', '.o.xx.', '......', 'o.h.o.', '..h...', '....o.'].map((row, r) => [...row].map((v, c) =>
+          `<rect x="${c * 12}" y="${r * 12}" width="10" height="10" rx="1.5" fill="${v === 'x' ? '#b8434f' : v === 'h' ? '#ff7a7a' : '#22305a'}"/>` +
+          (v === 'o' ? `<circle cx="${c * 12 + 5}" cy="${r * 12 + 5}" r="1.6" fill="#9097b5"/>` : v === 'h' ? `<circle cx="${c * 12 + 5}" cy="${r * 12 + 5}" r="2" fill="#f4f0e6"/>` :
+           v === 'x' ? `<path d="M${c * 12 + 2.5} ${r * 12 + 2.5}l5 5m0-5l-5 5" stroke="#0b0f1d" stroke-width="1.6"/>` : '')).join('')).join('')}
+      </g>`
   },
 ];
 
