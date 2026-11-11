@@ -1,5 +1,5 @@
 // Versie van de site. Verhoog met tools/bump-version.sh, dat ook de verwijzingen in alle pagina's bijwerkt.
-const SITE_VERSION = '8.5';
+const SITE_VERSION = '8.6';
 
 // Staat er online al een nieuwere versie? Dan meteen de verse pagina laden, één keer per versie.
 (function(){
@@ -51,6 +51,16 @@ const SITE_VERSION = '8.5';
       for(const ev of['gesturestart','gesturechange'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
       // geen menu bij lang drukken (Android toont dat soms toch)
       document.addEventListener('contextmenu',e=>{if(!native(e.target))e.preventDefault();});
+      // Een game vult het scherm en schuift nooit. Na het draaien van een iPhone laat Safari de pagina soms toch een stuk
+      // verschoven staan: je ziet de game dan op de ene plek, terwijl je aanraking op een andere plek telt.
+      // Daarom zetten we de pagina terug op nul bij elke verschuiving, en na het draaien nog een paar keer kort daarna.
+      const vv=window.visualViewport;
+      const home=()=>{if(window.scrollX||window.scrollY||(vv&&(vv.offsetTop||vv.offsetLeft)))window.scrollTo(0,0);};
+      const settle=()=>{home();for(const ms of[60,250,500,900])setTimeout(home,ms);};
+      addEventListener('scroll',home,{passive:true});
+      addEventListener('resize',settle);
+      addEventListener('orientationchange',settle);
+      if(vv){vv.addEventListener('scroll',home);vv.addEventListener('resize',settle);}
       return;
     }
     document.addEventListener('touchstart',e=>{
