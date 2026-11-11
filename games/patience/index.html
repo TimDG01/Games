@@ -7,8 +7,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;600&display=swap">
 <style>
 /* Layout: tellers bovenaan, de kaarten in het midden, onderaan de knop om een zet terug te nemen, panelen erover.
-   Elke kaart is één element dat naar zijn plek schuift; layout() rekent alle plekken uit.
-   Is het scherm hoog genoeg, dan liggen de pot en de aflegstapel onderaan rechts, onder je duim, met de knop ernaast. */
+   Elke kaart is één element dat naar zijn plek schuift; layout() rekent alle plekken uit. */
 :root{
   --bg:#141a2e; --bg-deep:#0b0f1d; --fg:#f4f0e6; --muted:#9097b5; --accent:#ffb347; --panel:#1d2440;
   --display:'Bungee', Impact, 'Arial Black', sans-serif;
@@ -50,9 +49,6 @@ button.slot{background:none;padding:0;cursor:pointer}
 .bar button{flex:1;font-family:var(--display);font-size:15px;color:var(--fg);background:#2a3358;border:0;border-radius:4px;padding:11px 10px;cursor:pointer;box-shadow:0 4px 0 #1a2140}
 .bar button:active{transform:translateY(3px);box-shadow:0 1px 0 #1a2140}
 .bar button:disabled{opacity:.4;cursor:default;transform:none}
-/* pot onderaan: de knop staat in dezelfde rij, links van de pot; layout() zet plek en maat */
-#wrap.low .stage{margin-bottom:0}
-#wrap.low .bar{position:absolute;max-width:none;align-items:center}
 .home{width:40px;height:40px;display:grid;place-items:center;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);text-decoration:none;font-size:20px}
 .home:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
 .restart{width:40px;height:40px;border-radius:4px;background:rgba(29,36,64,.7);color:var(--fg);border:0;font-size:20px;cursor:pointer;padding:0}
@@ -140,7 +136,7 @@ button:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
   </div>
 </div>
 
-<script src="../../version.js?v=8.3"></script>
+<script src="../../version.js?v=8.4"></script>
 <script>
 const $=id=>document.getElementById(id);
 try{$('ver').textContent=SITE_VERSION}catch(e){}
@@ -158,7 +154,7 @@ let draw=1; try{if(localStorage.getItem('patience-draw')==='3')draw=3}catch(e){}
    up[c] zegt of kaart c open ligt. */
 let stock=[],waste=[],found=[[],[],[],[]],tab=[[],[],[],[],[],[],[]],up=new Uint8Array(52);
 let moves=0,elapsed=0,t0=0,timer=null,state='start',history=[],best=0,autoTimer=null,overTimer=null;
-let loc=[],XY=[],els=[],cw=46,ch=64,gx=4,gy=12,lastDrag=0,low=false;
+let loc=[],XY=[],els=[],cw=46,ch=64,gx=4,gy=12,lastDrag=0;
 
 function readBest(d){try{return +localStorage.getItem(bestKey(d))||0}catch(e){return 0}}
 function showBest(){$('best').textContent='Record '+(best?best+' zetten':'–')+' · '+(draw===1?'1 kaart':'3 kaarten');}
@@ -194,34 +190,26 @@ function build(){
 
 /* waar ligt alles? De breedte van een kaart volgt uit de ruimte; een lange kolom wordt in elkaar geschoven tot ze past. */
 function layout(){
-  const st=document.querySelector('.stage'), wrap=$('wrap'), bar=document.querySelector('.bar');
-  let W,H;
-  const size=()=>{W=Math.min(st.clientWidth,620);H=st.clientHeight;gx=W<420?4:8;
-    cw=Math.max(20,Math.floor(Math.min((W-6*gx)/7,H/4.3/1.4,92)));ch=Math.round(cw*1.4);gy=Math.round(ch*.16);};
-  // pot onderaan als er daarna nog genoeg hoogte is voor de kolommen; anders (liggend scherm) blijft hij rechtsboven
-  wrap.classList.add('low');size();
-  low=H>=ch*6.8;
-  if(!low){wrap.classList.remove('low');size();}
+  const st=document.querySelector('.stage'), W=Math.min(st.clientWidth,620), H=st.clientHeight;
+  gx=W<420?4:8;
+  cw=Math.max(20,Math.floor(Math.min((W-6*gx)/7,H/4.3/1.4,92)));ch=Math.round(cw*1.4);gy=Math.round(ch*.16);
   const b=$('board'), s=document.documentElement.style;
   s.setProperty('--cw',cw+'px');s.setProperty('--ch',ch+'px');
   b.style.width=7*cw+6*gx+'px';b.style.height=H+'px';
-  const X=k=>k*(cw+gx), Y1=ch+gy, YS=low?H-ch:0, floor=low?YS-gy:H;
-  if(low){const r=b.getBoundingClientRect();
-    bar.style.left=r.left+'px';bar.style.top=r.top+YS+'px';bar.style.width=4*cw+3*gx+'px';bar.style.height=ch+'px';}
-  else bar.style.left=bar.style.top=bar.style.width=bar.style.height='';
+  const X=k=>k*(cw+gx), Y1=ch+gy;
   const put=(c,x,y,z,p,k,i)=>{const el=els[c];el.style.transform=`translate(${x}px,${y}px)`;el.style.zIndex=z;
     el.classList.toggle('down',!up[c]);XY[c]=[x,y];loc[c]={p,k,i};};
   for(const sl of b.querySelectorAll('.slot')){
     const t=sl.dataset.slot, k=+t.slice(1);
-    sl.style.transform=t==='s'?`translate(${X(6)}px,${YS}px)`:t[0]==='f'?`translate(${X(k)}px,0)`:`translate(${X(k)}px,${Y1}px)`;
+    sl.style.transform=t==='s'?`translate(${X(6)}px,0)`:t[0]==='f'?`translate(${X(k)}px,0)`:`translate(${X(k)}px,${Y1}px)`;
   }
-  stock.forEach((c,i)=>put(c,X(6),YS,i,'s',0,i));
+  stock.forEach((c,i)=>put(c,X(6),0,i,'s',0,i));
   const fan=Math.round(cw*.36);
-  waste.forEach((c,i)=>{const back=Math.min(waste.length-1-i,2);put(c,X(5)-(draw===3?back*fan:0),YS,i,'w',0,i);});
+  waste.forEach((c,i)=>{const back=Math.min(waste.length-1-i,2);put(c,X(5)-(draw===3?back*fan:0),0,i,'w',0,i);});
   found.forEach((p,k)=>p.forEach((c,i)=>put(c,X(k),0,i,'f',k,i)));
   tab.forEach((p,j)=>{
     const steps=p.slice(0,-1).map(c=>up[c]?ch*.3:ch*.15), total=steps.reduce((a,v)=>a+v,0);
-    const f=Math.min(1,(floor-Y1-ch)/(total||1));
+    const f=Math.min(1,(H-Y1-ch)/(total||1));
     let y=Y1;
     p.forEach((c,i)=>{put(c,X(j),Math.round(y),i,'t',j,i);y+=(steps[i]||0)*f;});
   });
@@ -384,7 +372,6 @@ function drop(e){
     const col=Math.max(0,Math.min(6,Math.round((cx-cw/2)/(cw+gx))));
     if(cy<ch+gy/2){
       if(col<4&&d.seq.length===1&&!(d.l.p==='f'&&d.l.k===col)&&fitsFound(c,col))return moveTo(d.l,'f',col);
-    }else if(low&&cy>board.clientHeight-ch-gy/2){   // de rij van de pot: daar leg je niets neer
     }else if(!(d.l.p==='t'&&d.l.k===col)&&fitsTab(c,col))return moveTo(d.l,'t',col);
     // nauwelijks verschoven en op zijn eigen plek losgelaten: dat was een tik met een bewegende vinger
     if(Math.hypot(e.clientX-d.x,e.clientY-d.y)<cw*.6){layout();return tap(d.l,e.clientX,e.clientY);}
